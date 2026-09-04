@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "cohort_config_version": "cohorts@1",
+  "fallback_cohort": "pooled",
+  "minimum_reference_rows": 40,
+  "allowed_cohorts": [
+    "SMB_ECOMMERCE",
+    "MID_MARKET",
+    "ENTERPRISE",
+    "pooled"
+  ]
+}

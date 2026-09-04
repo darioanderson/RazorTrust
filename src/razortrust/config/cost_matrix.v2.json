@@ -1,0 +1,12 @@
+{
+  "schema_version": "2.0",
+  "cost_matrix_version": "hold-cost@2",
+  "currency": "NORMALIZED_COST_UNITS",
+  "actions": ["RELEASE", "EVIDENCE_NEEDED", "ESCALATE"],
+  "true_states": ["RELEASE", "EVIDENCE_NEEDED", "ESCALATE"],
+  "matrix": [
+    [0, 25, 100],
+    [5, 5, 30],
+    [40, 20, 5]
+  ]
+}

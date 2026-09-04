@@ -1,0 +1,169 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "razortrust"
+version = "0.5.0"
+description = "Production-shaped settlement hold risk verifier"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi[standard-no-fastapi-cloud-cli]==0.141.1",
+  "pydantic==2.13.4",
+  "cryptography>=49,<50",
+  "SQLAlchemy==2.0.51",
+  "alembic==1.19.1",
+  "asyncpg>=0.31,<0.32",
+  "httpx>=0.28,<1",
+  "rfc8785==0.1.4",
+  "reportlab>=4.4,<5",
+  "uvicorn[standard]>=0.40,<1",
+]
+
+[project.optional-dependencies]
+observability = [
+  "opentelemetry-api==1.44.0",
+  "opentelemetry-sdk==1.44.0",
+  "opentelemetry-instrumentation-fastapi==0.65b0",
+  "opentelemetry-exporter-otlp==1.44.0",
+  "sentry-sdk[fastapi]>=2.68,<3",
+]
+ml = [
+  "numpy>=2.4,<3",
+  "pandas>=2.3,<3",
+  "scipy>=1.17,<2",
+  "scikit-learn==1.9.0",
+  "xgboost==3.4.1",
+  "shap==0.52.0",
+  "evidently==0.7.21",
+  "mlflow==3.15.2",
+  "optuna>=4.9,<5",
+  "skops>=0.13,<1",
+]
+novelty = ["torch==2.13.0"]
+graph = ["networkx==3.6.1"]
+gnn = ["torch==2.13.0", "torch-geometric==2.8.0.post1"]
+sequence = ["torch==2.13.0"]
+drift = ["river>=0.22,<1"]
+uncertainty = ["mapie>=1.5,<2"]
+viz = ["umap-learn>=0.5,<1"]
+test = [
+  "pytest>=9,<10",
+  "pytest-asyncio>=1.3,<2",
+  "pytest-cov>=7,<8",
+  "coverage[toml]>=7.13,<8",
+  "ruff",
+  "mypy",
+  "pypdf>=6,<7",
+  "types-reportlab>=4.4,<5",
+  "aiosqlite>=0.22,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/razortrust"]
+artifacts = ["src/razortrust/web/**"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.codex-plugin",
+  "/alembic",
+  "/docs",
+  "/experimental",
+  "/infra",
+  "/policies",
+  "/scripts",
+  "/src",
+  "/tests",
+  "/.env.example",
+  "/.gitignore",
+  "/alembic.ini",
+  "/docker-compose.yml",
+  "/Dockerfile",
+  "/pyproject.toml",
+  "/README.md",
+]
+exclude = ["**/__pycache__", "**/*.pyc"]
+
+[tool.pytest.ini_options]
+addopts = "-q --basetemp=.test-temp"
+asyncio_mode = "auto"
+pythonpath = ["src"]
+testpaths = ["tests"]
+cache_dir = "work/pytest-cache-v2"
+
+[tool.coverage.run]
+branch = true
+source = ["razortrust"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+  ".verify-venv",
+  "artifacts",
+  "dataset_v3_context_*",
+  "dist",
+  "mlruns",
+  "work",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# These standalone historical research entry points deliberately bootstrap src/
+# before importing the package and contain immutable report prose.
+"scripts/audit_phase2b_operational_gates.py" = ["E501"]
+"scripts/evaluate_phase2a_ae_ood.py" = ["E402", "E501"]
+"scripts/evaluate_phase2b_unknown_family.py" = ["E402", "E501"]
+"scripts/evaluate_phase2c_family_generalization.py" = ["E402", "E501"]
+"scripts/evaluate_r4d3_novelty_guard.py" = ["E402", "E501"]
+"scripts/train_if2_challenger.py" = ["E402", "E501"]
+# FastAPI's dependency-call defaults are framework declarations, not mutable defaults.
+"src/razortrust/api.py" = ["B008"]
+"alembic/versions/*.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+explicit_package_bases = true
+mypy_path = ["src", "tests"]
+exclude = ["dataset_v3_context_.*", "work", "mlruns", "artifacts", "\\.verify-venv"]
+
+[[tool.mypy.overrides]]
+module = [
+  "evidently.*",
+  "joblib.*",
+  "mlflow.*",
+  "mapie.*",
+  "networkx.*",
+  "opentelemetry.*",
+  "optuna.*",
+  "pandas.*",
+  "river.*",
+  "sentry_sdk.*",
+  "shap.*",
+  "scipy.*",
+  "skops.*",
+  "sklearn.*",
+  "torch.*",
+  "torch_geometric.*",
+  "xgboost.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "razortrust.live_features",
+  "razortrust.processor_timeline",
+]
+# SQLAlchemy's mapped row classes are structurally compatible at runtime, but
+# their generated attributes cannot currently satisfy a useful static protocol.
+ignore_errors = true

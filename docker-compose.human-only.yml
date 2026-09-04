@@ -1,0 +1,4 @@
+﻿services:
+  api:
+    environment:
+      RAZORTRUST_DECISION_MODE: human_only

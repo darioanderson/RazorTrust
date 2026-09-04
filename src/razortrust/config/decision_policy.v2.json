@@ -1,0 +1,9 @@
+{
+  "schema_version": "2.0",
+  "policy_version": "decision-policy@2",
+  "maximum_evidence_rounds": 1,
+  "evidence_release_risk_cap": 0.20,
+  "maximum_false_release_rate": 0.05,
+  "system_error_action": "ESCALATE",
+  "policy_unavailable_action": "ESCALATE"
+}

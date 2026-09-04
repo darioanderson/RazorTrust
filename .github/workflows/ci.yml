@@ -1,0 +1,80 @@
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -e '.[test,ml,novelty,graph,drift,uncertainty]'
+      - run: ruff check src scripts tests
+      - run: ruff format --check src scripts tests
+      - run: mypy src/razortrust
+      - run: pytest tests
+      - uses: open-policy-agent/setup-opa@v2
+        with: {version: "1.19.1"}
+      - run: opa test policies -v
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          load: true
+          tags: razortrust:${{ github.sha }}
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: razortrust:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with: {sarif_file: trivy-results.sarif}
+      - uses: anchore/sbom-action@v0.20.11
+        with:
+          image: razortrust:${{ github.sha }}
+          artifact-name: razortrust-${{ github.sha }}.spdx.json
+      - uses: actions/attest-build-provenance@v3
+        if: github.event_name == 'push'
+        with:
+          subject-name: razortrust
+          subject-digest: ${{ steps.build.outputs.digest }}
+
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          mkdir -p work/ci-secrets deploy/policy
+          printf test > work/ci-secrets/value
+          touch deploy/policy/bundle.tar.gz
+          POSTGRES_PASSWORD_FILE=work/ci-secrets/value \
+          DATABASE_URL_FILE=work/ci-secrets/value \
+          API_PRINCIPALS_FILE=work/ci-secrets/value \
+          EVIDENCE_PUBLIC_KEYS_FILE=work/ci-secrets/value \
+          RAZORPAY_KEY_ID_FILE=work/ci-secrets/value \
+          RAZORPAY_KEY_SECRET_FILE=work/ci-secrets/value \
+          RAZORPAY_WEBHOOK_SECRET_FILE=work/ci-secrets/value \
+          OPA_PUBLIC_KEY_FILE=work/ci-secrets/value \
+          OTEL_EXPORTER_DESTINATION=http://collector.example/v1/traces \
+          docker compose -f docker-compose.staging.yml config --quiet

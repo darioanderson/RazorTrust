@@ -1,0 +1,134 @@
+name: razortrust-staging
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: razortrust
+      POSTGRES_USER: razortrust
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U razortrust -d razortrust"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      RAZORTRUST_DATABASE_URL_FILE: /run/secrets/database_url
+    secrets: [database_url]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  api:
+    build:
+      context: .
+      args: {INSTALL_EXTRAS: observability}
+    environment:
+      RAZORTRUST_ENV: staging
+      RAZORTRUST_DECISION_MODE: human_only
+      RAZORTRUST_DATABASE_URL_FILE: /run/secrets/database_url
+      RAZORTRUST_API_PRINCIPALS_FILE: /run/secrets/api_principals
+      RAZORTRUST_EVIDENCE_PUBLIC_KEYS_FILE: /run/secrets/evidence_public_keys
+      RAZORTRUST_AUTHORIZATION_REQUIRED: "true"
+      RAZORTRUST_AUTHORIZATION_MODE: opa
+      RAZORTRUST_POLICY_MODE: opa
+      RAZORTRUST_OPA_URL: http://opa:8181
+      RAZORTRUST_TRUSTED_HOSTS: api,localhost,razortrust.local
+      RAZORTRUST_RATE_LIMIT_PER_MINUTE: "120"
+      RAZORTRUST_LEDGER_PATH: /app/var/audit.jsonl
+      RAZORTRUST_RAZORPAY_ENABLED: "true"
+      RAZORTRUST_RAZORPAY_MODE: test
+      RAZORTRUST_RAZORPAY_KEY_ID_FILE: /run/secrets/razorpay_key_id
+      RAZORTRUST_RAZORPAY_KEY_SECRET_FILE: /run/secrets/razorpay_key_secret
+      RAZORTRUST_RAZORPAY_WEBHOOK_SECRET_FILE: /run/secrets/razorpay_webhook_secret
+      RAZORTRUST_AUTOMATION_ENABLED: "true"
+      RAZORTRUST_AUTOMATION_INTERVAL_SECONDS: "60"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    secrets:
+      - database_url
+      - api_principals
+      - evidence_public_keys
+      - razorpay_key_id
+      - razorpay_key_secret
+      - razorpay_webhook_secret
+    volumes: [audit-data:/app/var]
+    expose: ["8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      opa: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits: {cpus: "2.0", memory: 1G}
+
+  opa:
+    image: openpolicyagent/opa:1.19.1
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - >-
+        exec /opa run --server --addr=0.0.0.0:8181 --config-file=/config/opa.yaml
+        --set-string=keys.release-key.key="$$(cat /run/secrets/opa_public_key)"
+    secrets: [opa_public_key]
+    volumes: ["./infra/opa-staging.yaml:/config/opa.yaml:ro"]
+    depends_on: [policy-bundle]
+    healthcheck:
+      test: ["CMD", "/opa", "eval", "data.razortrust.holds.health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  policy-bundle:
+    image: nginx:1.29-alpine
+    volumes: ["./deploy/policy:/usr/share/nginx/html/bundles:ro"]
+    expose: ["80"]
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run]
+    security_opt: [no-new-privileges:true]
+
+  gateway:
+    image: caddy:2.10-alpine
+    ports: ["8443:8443"]
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [api]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes: ["./infra/otel-collector.staging.yaml:/etc/otelcol-contrib/config.yaml:ro"]
+    environment:
+      OTEL_EXPORTER_DESTINATION: "${OTEL_EXPORTER_DESTINATION:?set OTEL_EXPORTER_DESTINATION}"
+    restart: unless-stopped
+
+secrets:
+  postgres_password: {file: "${POSTGRES_PASSWORD_FILE:?set POSTGRES_PASSWORD_FILE}"}
+  database_url: {file: "${DATABASE_URL_FILE:?set DATABASE_URL_FILE}"}
+  api_principals: {file: "${API_PRINCIPALS_FILE:?set API_PRINCIPALS_FILE}"}
+  evidence_public_keys: {file: "${EVIDENCE_PUBLIC_KEYS_FILE:?set EVIDENCE_PUBLIC_KEYS_FILE}"}
+  razorpay_key_id: {file: "${RAZORPAY_KEY_ID_FILE:?set RAZORPAY_KEY_ID_FILE}"}
+  razorpay_key_secret: {file: "${RAZORPAY_KEY_SECRET_FILE:?set RAZORPAY_KEY_SECRET_FILE}"}
+  razorpay_webhook_secret: {file: "${RAZORPAY_WEBHOOK_SECRET_FILE:?set RAZORPAY_WEBHOOK_SECRET_FILE}"}
+  opa_public_key: {file: "${OPA_PUBLIC_KEY_FILE:?set OPA_PUBLIC_KEY_FILE}"}
+
+volumes:
+  audit-data:
+  postgres-data:
+  caddy-data:

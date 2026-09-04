@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="RazorTrust live human-gated settlement-risk execution trace"
+    />
+    <title>RazorTrust - Live Case Workflow</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to case workflow</a>
+
+    <main id="main-content" class="workflow-shell" tabindex="-1">
+      <header class="workflow-header">
+        <div>
+          <p class="eyebrow">RAZORTRUST &middot; AI RISK MANAGER</p>
+          <h1>Live Case Processing Workflow</h1>
+          <p class="lede">
+            One case enters. Every backend layer returns its own real result.
+            No browser-generated transactions, no preset model answer, no automatic RELEASE.
+          </p>
+        </div>
+
+        <div class="safety-stack" aria-label="Enforcement state">
+          <span class="safety-pill test">TEST ENVIRONMENT</span>
+          <span class="safety-pill safe">HUMAN_ONLY</span>
+          <span class="safety-pill safe">AUTO RELEASE OFF</span>
+        </div>
+      </header>
+
+      <section class="input-panel" aria-labelledby="case-input-title">
+        <div>
+          <p class="eyebrow">CASE INPUT</p>
+          <h2 id="case-input-title">Process provider-backed or imported real-history cases</h2>
+          <p class="muted">
+            Select a Razorpay TEST payment, an imported real-history transaction, or an existing hold. The backend computes the trace; the browser never invents features or outcomes.
+          </p>
+        </div>
+
+        <div class="input-grid">
+          <label>
+            <span>Real payment / stored case</span>
+            <select id="hold-select">
+              <option value="">Loading real payments and cases...</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Payment ID or Hold UUID</span>
+            <input
+              id="hold-id"
+              type="text"
+              autocomplete="off"
+              placeholder="Paste pay_... or an existing hold UUID"
+            />
+          </label>
+
+          <label>
+            <span>Bearer token</span>
+            <input
+              id="api-token"
+              type="password"
+              autocomplete="off"
+              placeholder="Optional in local mode"
+            />
+          </label>
+
+          <div class="input-actions">
+            <button id="refresh-cases" class="button secondary" type="button">
+              Refresh cases
+            </button>
+            <button id="process-case" class="button primary" type="button">
+              Process case
+            </button>
+          </div>
+        </div>
+
+        <div id="source-note" class="source-note" aria-live="polite">
+          Waiting for a real payment or case. Synthetic fixtures are not used on this page.
+        </div>
+      </section>
+
+
+      <section class="input-panel benchmark-panel" aria-labelledby="benchmark-title">
+        <div>
+          <p class="eyebrow">PUBLIC REAL-WORLD BENCHMARK</p>
+          <h2 id="benchmark-title">Run real fraud data without pretending it is Razorpay</h2>
+          <p class="muted">
+            ULB/Worldline &middot; 284,807 anonymized card transactions &middot; research only.
+            Blind mode hides the source label until the ground-truth stage after scoring.
+          </p>
+        </div>
+
+        <div class="input-grid">
+          <label>
+            <span>Held-out benchmark case</span>
+            <select id="benchmark-case-select">
+              <option value="">Prepare benchmark first</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Case filter</span>
+            <select id="benchmark-label-filter">
+              <option value="blind">Blind deterministic sample</option>
+              <option value="fraud">Fraud-labelled analysis cases</option>
+              <option value="legitimate">Legitimate-labelled analysis cases</option>
+              <option value="all">All labelled analysis cases</option>
+            </select>
+          </label>
+
+          <div class="input-actions">
+            <button id="prepare-benchmark" class="button secondary" type="button">
+              Prepare / train benchmark
+            </button>
+            <button id="run-benchmark" class="button primary" type="button">
+              Run selected benchmark case
+            </button>
+          </div>
+        </div>
+
+        <div id="benchmark-note" class="source-note" aria-live="polite">
+          Not prepared. This path never modifies xgb-if-settlement@2.
+        </div>
+      </section>
+
+      <section id="execution-summary" class="summary-grid hidden" aria-live="polite">
+        <article>
+          <span>Trace</span>
+          <strong id="summary-trace">-</strong>
+        </article>
+        <article>
+          <span>Source</span>
+          <strong id="summary-source">-</strong>
+        </article>
+        <article>
+          <span>AI recommendation</span>
+          <strong id="summary-recommendation">-</strong>
+        </article>
+        <article>
+          <span>Enforcement</span>
+          <strong id="summary-enforcement">HUMAN_ONLY</strong>
+        </article>
+      </section>
+
+      <section class="workflow-panel" aria-labelledby="workflow-title">
+        <div class="workflow-panel-heading">
+          <div>
+            <p class="eyebrow">AUTOMATIC EXECUTION TRACE</p>
+            <h2 id="workflow-title">Layer-by-layer output</h2>
+          </div>
+          <span id="run-status" class="run-status idle">IDLE</span>
+        </div>
+
+        <div id="stage-grid" class="stage-grid">
+          <article class="empty-state">
+            <h3>No case processed yet</h3>
+            <p>
+              Choose a provider-backed payment or stored case above. RazorTrust will execute each
+              available backend layer and render exactly what that layer returned.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="truth-panel">
+        <p class="eyebrow">TRUTH CONTRACT</p>
+        <div class="truth-grid">
+          <span>Browser computes features <strong>NO</strong></span>
+          <span>Preset model outcome <strong>NO</strong></span>
+          <span>Forced result diversity <strong>NO</strong></span>
+          <span>Production action eligible <strong>NO</strong></span>
+          <span>Final authority <strong>HUMAN_ONLY</strong></span>
+        </div>
+      </section>
+
+      <div id="toast" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>

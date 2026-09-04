@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "novelty-policy@1",
+  "strong_signal_percentile": 0.95,
+  "review_signal_count": 2,
+  "override_signal_count": 3,
+  "release_allowed_during_override": false,
+  "signals": [
+    "isolation_forest_percentile",
+    "autoencoder_oof_percentile",
+    "latent_mahalanobis_percentile"
+  ]
+}

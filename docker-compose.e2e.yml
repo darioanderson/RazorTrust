@@ -1,0 +1,99 @@
+name: razortrust-e2e
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: razortrust
+      POSTGRES_USER: razortrust
+      POSTGRES_PASSWORD: ${E2E_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U razortrust -d razortrust"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      RAZORTRUST_DATABASE_URL: postgresql+asyncpg://razortrust:${E2E_POSTGRES_PASSWORD}@postgres:5432/razortrust
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  opa:
+    image: openpolicyagent/opa:1.19.1-static
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]
+    volumes: ["./policies:/policies:ro"]
+    healthcheck:
+      test: ["CMD", "/opa", "eval", "data.razortrust.holds.health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  api:
+    build: .
+    environment:
+      RAZORTRUST_ENV: development
+      RAZORTRUST_DATABASE_URL: postgresql+asyncpg://razortrust:${E2E_POSTGRES_PASSWORD}@postgres:5432/razortrust
+      RAZORTRUST_API_PRINCIPALS: ${E2E_API_PRINCIPALS}
+      RAZORTRUST_EVIDENCE_PUBLIC_KEYS: ${E2E_EVIDENCE_PUBLIC_KEYS}
+      RAZORTRUST_AUTHORIZATION_REQUIRED: "true"
+      RAZORTRUST_AUTHORIZATION_MODE: opa
+      RAZORTRUST_POLICY_MODE: opa
+      RAZORTRUST_OPA_URL: http://opa:8181
+      RAZORTRUST_TRUSTED_HOSTS: localhost,127.0.0.1
+      RAZORTRUST_RATE_LIMIT_PER_MINUTE: "1000"
+      RAZORTRUST_LEDGER_PATH: /app/var/audit.jsonl
+      RAZORTRUST_RAZORPAY_ENABLED: "true"
+      RAZORTRUST_RAZORPAY_MODE: test
+      RAZORTRUST_RAZORPAY_KEY_ID: e2e-key
+      RAZORTRUST_RAZORPAY_KEY_SECRET: ${E2E_RAZORPAY_KEY_SECRET}
+      RAZORTRUST_RAZORPAY_WEBHOOK_SECRET: ${E2E_WEBHOOK_SECRET}
+    ports: ["18000:8000"]
+    volumes: ["audit-data:/app/var"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      opa: {condition: service_healthy}
+
+  api-human-only:
+    build: .
+    environment:
+      RAZORTRUST_ENV: staging
+      RAZORTRUST_DECISION_MODE: human_only
+      RAZORTRUST_DATABASE_URL: postgresql+asyncpg://razortrust:${E2E_POSTGRES_PASSWORD}@postgres:5432/razortrust
+      RAZORTRUST_API_PRINCIPALS: ${E2E_API_PRINCIPALS}
+      RAZORTRUST_EVIDENCE_PUBLIC_KEYS: ${E2E_EVIDENCE_PUBLIC_KEYS}
+      RAZORTRUST_AUTHORIZATION_REQUIRED: "true"
+      RAZORTRUST_AUTHORIZATION_MODE: opa
+      RAZORTRUST_POLICY_MODE: opa
+      RAZORTRUST_OPA_URL: http://opa:8181
+      RAZORTRUST_TRUSTED_HOSTS: localhost,127.0.0.1
+      RAZORTRUST_LEDGER_PATH: /app/var/human-only-audit.jsonl
+    ports: ["18002:8000"]
+    volumes: ["audit-data:/app/var"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      opa: {condition: service_healthy}
+
+  api-model-outage:
+    build: .
+    environment:
+      RAZORTRUST_ENV: staging
+      RAZORTRUST_DATABASE_URL: postgresql+asyncpg://razortrust:${E2E_POSTGRES_PASSWORD}@postgres:5432/razortrust
+      RAZORTRUST_API_PRINCIPALS: ${E2E_API_PRINCIPALS}
+      RAZORTRUST_EVIDENCE_PUBLIC_KEYS: ${E2E_EVIDENCE_PUBLIC_KEYS}
+      RAZORTRUST_AUTHORIZATION_REQUIRED: "true"
+      RAZORTRUST_AUTHORIZATION_MODE: opa
+      RAZORTRUST_POLICY_MODE: opa
+      RAZORTRUST_OPA_URL: http://opa:8181
+      RAZORTRUST_TRUSTED_HOSTS: localhost,127.0.0.1
+      RAZORTRUST_MODEL_RELEASE_PATH: /missing/release
+      RAZORTRUST_MODEL_PUBLIC_KEY: invalid
+    ports: ["18001:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      opa: {condition: service_healthy}
+
+volumes:
+  audit-data:

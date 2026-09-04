@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      args:
+        INSTALL_EXTRAS: observability,ml
+    environment:
+      RAZORTRUST_DECISION_MODE: human_only
+      RAZORTRUST_SHADOW_MODEL_RELEASE_PATH: /app/artifacts/tier0/model-release
+      RAZORTRUST_SHADOW_MODEL_PUBLIC_KEY_PATH: /app/artifacts/tier0/model-release-public-key.txt
+      RAZORTRUST_SHADOW_MODEL_EXPECTED_VERSION: xgb-if-settlement@2
+    volumes:
+      - type: bind
+        source: ./artifacts/tier0/model-release
+        target: /app/artifacts/tier0/model-release
+        read_only: true
+      - type: bind
+        source: ./artifacts/tier0/model-release-public-key.txt
+        target: /app/artifacts/tier0/model-release-public-key.txt
+        read_only: true
+      - type: bind
+        source: ./var/operator-history
+        target: /app/var/operator-history
+      - type: bind
+        source: ./var/public-benchmark
+        target: /app/var/public-benchmark

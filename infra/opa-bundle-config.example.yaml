@@ -1,0 +1,24 @@
+services:
+  razortrust_bundle_service:
+    url: https://policy-bundles.example.invalid
+
+keys:
+  razortrust-policy-current:
+    algorithm: ES256
+    scope: razortrust/policies
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      REPLACE_WITH_PUBLIC_VERIFICATION_KEY_FROM_KMS
+      -----END PUBLIC KEY-----
+
+bundles:
+  razortrust:
+    service: razortrust_bundle_service
+    resource: bundles/razortrust.tar.gz
+    persist: true
+    signing:
+      keyid: razortrust-policy-current
+      scope: razortrust/policies
+
+decision_logs:
+  console: true

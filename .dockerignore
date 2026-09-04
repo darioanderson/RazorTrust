@@ -1,0 +1,13 @@
+.git
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.verify-venv
+artifacts
+dataset_v3_context_*
+dist
+mlruns
+outputs
+work
+**/__pycache__
+**/*.pyc

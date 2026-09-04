@@ -1,0 +1,23 @@
+services:
+  bundle_server:
+    url: http://policy-bundle
+
+keys:
+  release-key:
+    algorithm: ES256
+    key: overridden-by-compose-secret
+
+bundles:
+  razortrust:
+    service: bundle_server
+    resource: bundles/bundle.tar.gz
+    persist: true
+    signing:
+      keyid: release-key
+      scope: razortrust-production
+
+decision_logs:
+  console: true
+
+status:
+  console: true

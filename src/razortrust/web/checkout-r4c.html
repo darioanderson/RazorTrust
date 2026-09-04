@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="RazorTrust Razorpay Test Mode checkout surface" />
+  <title>RazorTrust - R4C Test Checkout</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      color: #f4f6f8;
+      background: #08090b;
+      --panel: #111318;
+      --panel-2: #16191f;
+      --line: #252a32;
+      --muted: #939ba8;
+      --accent: #5b8cff;
+      --safe: #59d3a2;
+      --amber: #f4bf65;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 80% 0%, rgb(91 140 255 / 8%), transparent 24rem), #08090b; }
+    button, input, select { font: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .rail { min-height: 36px; padding: 8px 20px; border-bottom: 1px solid var(--line); display: flex; gap: 18px; align-items: center; background: #0b0d10; color: #a5adb8; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .rail b { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 7px; background: var(--accent); }
+    .rail .safe b { background: var(--safe); }
+    main { width: min(760px, calc(100% - 32px)); margin: 48px auto; }
+    .brand { margin-bottom: 20px; display: flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
+    .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--accent); font-weight: 900; }
+    .brand strong, .brand small { display: block; }
+    .brand small { margin-top: 2px; color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+    .card { border: 1px solid var(--line); border-radius: 18px; padding: 28px; background: linear-gradient(145deg, #11151d, #0d0f13 74%); box-shadow: 0 24px 70px rgb(0 0 0 / 35%); }
+    .eyebrow { margin: 0 0 7px; color: var(--accent); font: 850 10px ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .15em; }
+    h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 48px); line-height: 1; letter-spacing: -.045em; }
+    p { color: #abb3be; line-height: 1.6; }
+    .notice { margin: 22px 0; padding: 14px; border: 1px solid #594520; border-radius: 12px; background: #171208; color: #c2b28c; font-size: 13px; }
+    .notice strong { color: var(--amber); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
+    input, select { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #0e1014; color: #f4f6f8; }
+    .small { margin-top: 7px; color: #707986; font-size: 10px; line-height: 1.45; }
+    button { width: 100%; min-height: 46px; margin-top: 20px; border: 0; border-radius: 10px; padding: 12px 16px; background: var(--accent); color: white; font-weight: 800; cursor: pointer; box-shadow: 0 10px 28px rgb(91 140 255 / 18%); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .out-label { margin: 22px 0 7px; color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+    pre { margin: 0; min-height: 90px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #0b0d10; color: #c6d1e4; white-space: pre-wrap; word-break: break-word; font-size: 11px; line-height: 1.5; }
+    @media (max-width: 620px) { main { margin: 24px auto; } .card { padding: 21px; } .grid { grid-template-columns: 1fr; } .rail { overflow-x: auto; white-space: nowrap; } }
+  </style>
+</head>
+<body>
+  <div class="rail" aria-label="Checkout safety posture">
+    <span><b></b>RAZORPAY TEST MODE</span>
+    <span class="safe"><b></b>SHADOW ONLY</span>
+    <span class="safe"><b></b>NO SETTLEMENT RELEASE</span>
+  </div>
+  <main>
+    <a class="brand" href="/" aria-label="Back to RazorTrust">
+      <span class="brand-mark" aria-hidden="true">R</span>
+      <span><strong>RazorTrust</strong><small>R4C TEST CHECKOUT</small></span>
+    </a>
+    <section class="card" aria-labelledby="checkout-title">
+      <p class="eyebrow">FIRST-PARTY TELEMETRY + SERVER VERIFICATION</p>
+      <h1 id="checkout-title">Secure test checkout.</h1>
+      <p>This page creates the Razorpay order on the RazorTrust server, records privacy-safe first-party telemetry, and verifies the Checkout signature on the server.</p>
+      <div class="notice"><strong>Shadow only.</strong> A successful payment does not authorize settlement release or any production financial action.</div>
+
+      <div class="grid">
+        <label for="amount">Test amount (&#8377;)
+          <input id="amount" type="number" min="1" max="100000" step="1" value="10" />
+        </label>
+        <label for="geo">Coarse customer region
+          <select id="geo">
+            <option value="IN-DL">IN-DL - Delhi</option>
+            <option value="IN-HR">IN-HR - Haryana</option>
+            <option value="IN-UP">IN-UP - Uttar Pradesh</option>
+            <option value="IN-MH">IN-MH - Maharashtra</option>
+            <option value="IN-KA">IN-KA - Karnataka</option>
+            <option value="IN-RJ">IN-RJ - Rajasthan</option>
+            <option value="IN-PB">IN-PB - Punjab</option>
+          </select>
+          <span class="small">R4C stores only this coarse bucket, not GPS coordinates.</span>
+        </label>
+      </div>
+
+      <button id="pay" type="button">Create secure test checkout</button>
+      <div class="out-label">SERVER / CHECKOUT STATUS</div>
+      <pre id="out" role="status" aria-live="polite">Ready.</pre>
+    </section>
+  </main>
+<script>
+const out = document.getElementById('out');
+const payButton = document.getElementById('pay');
+const DEVICE_KEY = 'razortrust_r4c_device_pseudonym';
+function devicePseudonym() {
+  let value = localStorage.getItem(DEVICE_KEY);
+  if (!value) {
+    value = `rt-device-${crypto.randomUUID()}`;
+    localStorage.setItem(DEVICE_KEY, value);
+  }
+  return value;
+}
+function show(value) {
+  out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+}
+async function jsonFetch(url, options) {
+  const response = await fetch(url, options);
+  let body;
+  try { body = await response.json(); } catch { body = {detail: `HTTP ${response.status}`}; }
+  if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`);
+  return body;
+}
+payButton.addEventListener('click', async () => {
+  payButton.disabled = true;
+  try {
+    const rupees = Number(document.getElementById('amount').value);
+    if (!Number.isFinite(rupees) || rupees < 1) throw new Error('Enter a valid amount.');
+    show('Creating server-side Razorpay order...');
+    const order = await jsonFetch('/v1/integrations/razorpay/checkout/orders', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({
+        amount: Math.round(rupees * 100),
+        currency: 'INR',
+        device_pseudonym: devicePseudonym(),
+        customer_geo: document.getElementById('geo').value,
+        client_event_at: new Date().toISOString()
+      })
+    });
+    show({stage:'ORDER_CREATED', ...order});
+    const checkout = new Razorpay({
+      key: order.key_id,
+      amount: order.amount,
+      currency: order.currency,
+      order_id: order.razorpay_order_id,
+      name: 'RazorTrust',
+      description: 'R4C shadow checkout test',
+      handler: async function (response) {
+        show({stage:'CHECKOUT_RETURNED', payment_id: response.razorpay_payment_id, order_id: response.razorpay_order_id});
+        try {
+          const verified = await jsonFetch('/v1/integrations/razorpay/checkout/verify', {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify({
+              checkout_session_id: order.checkout_session_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+          show({stage:'SERVER_VERIFIED', ...verified});
+        } catch (error) {
+          show(`Verification failed: ${error.message}`);
+        } finally {
+          payButton.disabled = false;
+        }
+      },
+      modal: { ondismiss: () => { show('Checkout closed.'); payButton.disabled = false; } },
+      theme: { color: '#5b8cff' }
+    });
+    checkout.on('payment.failed', response => {
+      show({stage:'PAYMENT_FAILED', code: response.error?.code, description: response.error?.description});
+      payButton.disabled = false;
+    });
+    checkout.open();
+  } catch (error) {
+    show(`Error: ${error.message}`);
+    payButton.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

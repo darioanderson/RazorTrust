@@ -1,0 +1,81 @@
+name: razortrust
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: razortrust
+      POSTGRES_USER: razortrust
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U razortrust -d razortrust"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      RAZORTRUST_DATABASE_URL: postgresql+asyncpg://razortrust:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/razortrust
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      args:
+        INSTALL_EXTRAS: observability
+    environment:
+      RAZORTRUST_ENV: development
+      RAZORTRUST_DATABASE_URL: postgresql+asyncpg://razortrust:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/razortrust
+      RAZORTRUST_POLICY_MODE: opa
+      RAZORTRUST_OPA_URL: http://opa:8181
+      RAZORTRUST_LEDGER_PATH: /app/var/audit.jsonl
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      RAZORTRUST_RAZORPAY_ENABLED: ${RAZORTRUST_RAZORPAY_ENABLED:-false}
+      RAZORTRUST_RAZORPAY_MODE: ${RAZORTRUST_RAZORPAY_MODE:-test}
+      RAZORTRUST_RAZORPAY_KEY_ID: ${RAZORTRUST_RAZORPAY_KEY_ID:-}
+      RAZORTRUST_RAZORPAY_KEY_SECRET: ${RAZORTRUST_RAZORPAY_KEY_SECRET:-}
+      RAZORTRUST_RAZORPAY_WEBHOOK_SECRET: ${RAZORTRUST_RAZORPAY_WEBHOOK_SECRET:-}
+      RAZORTRUST_RAZORPAY_BASE_URL: ${RAZORTRUST_RAZORPAY_BASE_URL:-https://api.razorpay.com/v1}
+    ports: ["8000:8000"]
+    volumes: ["audit-data:/app/var"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      opa:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  opa:
+    image: openpolicyagent/opa:1.19.1-static
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-format=json", "/policies"]
+    ports: ["8181:8181"]
+    volumes: ["./policies:/policies:ro"]
+    healthcheck:
+      test: ["CMD", "/opa", "eval", "--data", "/policies", "data.razortrust.holds.health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes: ["./infra/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro"]
+    ports: ["4317:4317", "4318:4318"]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.15.2
+    profiles: ["ml"]
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--artifacts-destination", "/mlflow/artifacts"]
+    ports: ["5000:5000"]
+    volumes: ["mlflow-data:/mlflow"]
+
+volumes:
+  audit-data:
+  postgres-data:
+  mlflow-data:
