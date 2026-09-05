@@ -20,8 +20,8 @@ Download the original public dataset from
 <https://www.kaggle.com/mlg-ulb/creditcardfraud/home>, retain its license metadata, and run:
 
 ```powershell
-.venv\Scripts\python scripts\evaluate_public_fraud.py creditcardfraud.zip `
-  --output artifacts/public-fraud --estimators 300
+.venv\Scripts\python -m experimental.public_fraud.evaluate_public_fraud `
+  creditcardfraud.zip --output artifacts/public-fraud --estimators 300
 ```
 
 The benchmark uses chronological 60/20/20 partitions. It fits preprocessing only on training rows,
@@ -30,10 +30,11 @@ reports PR-AUC, precision, recall, fraud amount not stopped, and estimated legit
 cost. The delay-cost rate is a declared assumption until an operator supplies observed outcome costs.
 
 Two reconstruction architectures are compared against Isolation Forest at the same 99.5th-percentile
-legitimate validation threshold. An autoencoder passes only if both its sealed-test precision and recall
-meet or exceed Isolation Forest. A passing detector may contribute only an escalation override; it can
-never create a release. The report includes PR curves and, for a selected model, a t-SNE plot of its
-bottleneck. If no architecture passes, no latent plot is presented as a promoted result.
+legitimate validation threshold. Architecture and override selection use only the chronological
+validation partition. A novelty override must dominate Isolation Forest on validation precision and
+recall and reduce validation cost; the untouched test is then opened once as a final research gate.
+Any held-out cost regression rejects the override. A novelty detector can only add escalation; it can
+never create a release. Every trained research model is retained with a SHA-256 in the report.
 
 ## Real settlement dataset contract
 
@@ -49,5 +50,21 @@ permitted purpose, row counts, and SHA-256 for every input file. Holds must carr
 future outcomes and identities remain excluded from the model matrix. A partner export should be
 de-identified before entering this directory and must follow the organization's retention and data
 localization policy.
+
+The aggregate `content_sha256` is SHA-256 over each required filename, a null separator, and its exact
+bytes in this order: `merchants.jsonl`, `transactions.jsonl`, `holds.jsonl`. The loader rejects unknown
+or missing hash entries, duplicate merchant IDs, and transaction/hold references to unknown merchants.
+
+Train from a verified real settlement export without copying raw records into the artifact directory:
+
+```powershell
+.venv\Scripts\python scripts\train_model.py `
+  --dataset-dir C:\secure\razortrust-settlement-export `
+  --output artifacts\partner-real-candidate-YYYYMMDD `
+  --development-signing-key
+```
+
+This creates a signed candidate and evaluation report. It does not authorize automatic promotion or
+money movement; those still require the locked gates, independent validation, and human approval.
 
 No bundled dataset is redistributed in the source ZIP.

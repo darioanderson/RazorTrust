@@ -52,7 +52,9 @@ def _graph_columns(frame) -> list[str]:
     return [column for column in frame if column.startswith("graph_") or column in explicit]
 
 
-def _grouped_xgb_probabilities(frame, labels: np.ndarray, groups, columns: list[str], *, seed: int, folds: int) -> np.ndarray:
+def _grouped_xgb_probabilities(
+    frame, labels: np.ndarray, groups, columns: list[str], *, seed: int, folds: int
+) -> np.ndarray:
     probabilities = np.zeros(len(frame), dtype=float)
     splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=seed)
     for train_index, validation_index in splitter.split(frame, labels, groups):
@@ -67,11 +69,15 @@ def _grouped_xgb_probabilities(frame, labels: np.ndarray, groups, columns: list[
             tree_method="hist",
         )
         model.fit(frame.iloc[train_index][columns], labels[train_index])
-        probabilities[validation_index] = model.predict_proba(frame.iloc[validation_index][columns])[:, 1]
+        probabilities[validation_index] = model.predict_proba(
+            frame.iloc[validation_index][columns]
+        )[:, 1]
     return probabilities
 
 
-def _metrics(labels: np.ndarray, probabilities: np.ndarray, ring_mask: np.ndarray) -> dict[str, float]:
+def _metrics(
+    labels: np.ndarray, probabilities: np.ndarray, ring_mask: np.ndarray
+) -> dict[str, float]:
     actions = probabilities >= 0.5
     return {
         "pr_auc": round(float(average_precision_score(labels, probabilities)), 8),
@@ -82,11 +88,15 @@ def _metrics(labels: np.ndarray, probabilities: np.ndarray, ring_mask: np.ndarra
     }
 
 
-def _graphsage_grouped_probabilities(snapshots, labels: np.ndarray, groups, *, seed: int, folds: int, epochs: int) -> np.ndarray:
+def _graphsage_grouped_probabilities(
+    snapshots, labels: np.ndarray, groups, *, seed: int, folds: int, epochs: int
+) -> np.ndarray:
     probabilities = np.zeros(len(labels), dtype=float)
     splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=seed)
     dummy = np.zeros((len(labels), 1), dtype=float)
-    for fold_index, (train_index, validation_index) in enumerate(splitter.split(dummy, labels, groups), start=1):
+    for fold_index, (train_index, validation_index) in enumerate(
+        splitter.split(dummy, labels, groups), start=1
+    ):
         model = fit_graphsage_snapshots(
             [snapshots[index] for index in train_index],
             [int(labels[index]) for index in train_index],

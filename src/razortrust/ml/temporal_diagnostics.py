@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -10,11 +10,11 @@ from sklearn.metrics import average_precision_score, recall_score
 from sklearn.model_selection import StratifiedGroupKFold
 from xgboost import XGBClassifier
 
+from razortrust.domain import TransactionEvent
 from razortrust.features import FEATURE_COLUMNS
 from razortrust.ml.dataset import build_training_frame
 from razortrust.ml.sequence import point_in_time_sequence_features
 from razortrust.synthetic import SyntheticHold, SyntheticMerchant, TrueRiskState
-from razortrust.domain import TransactionEvent
 
 FALSE_RELEASE_COST = 100
 FALSE_HOLD_COST = 25
@@ -182,11 +182,12 @@ def run_seed_diagnostic(
     base = build_training_frame(merchants, transactions, holds).reset_index(drop=True)
     labels = base["true_risk_state"].astype(str).eq(TrueRiskState.RISKY).astype(int).to_numpy()
     groups = base["merchant_id"].astype(str).to_numpy()
+    window_results: dict[str, object] = {}
     result: dict[str, object] = {
         "seed": seed,
         "case_count": len(base),
         "risk_prevalence": round(float(np.mean(labels)), 8),
-        "windows": {},
+        "windows": window_results,
     }
 
     for window_hours in windows:
@@ -198,7 +199,11 @@ def run_seed_diagnostic(
             "tabular": list(FEATURE_COLUMNS),
             "temporal_full": full_cols,
             "temporal_plus_history_flag": [*full_cols, "temporal_history_available"],
-            "temporal_plus_history_count": [*full_cols, "temporal_history_available", "temporal_event_count"],
+            "temporal_plus_history_count": [
+                *full_cols,
+                "temporal_history_available",
+                "temporal_event_count",
+            ],
         }
         for feature in temporal_cols:
             candidates[f"add_one::{feature}"] = [*FEATURE_COLUMNS, feature]
@@ -218,15 +223,17 @@ def run_seed_diagnostic(
         tabular = overall["tabular"]
         full = overall["temporal_full"]
         audit["scale_note"] = (
-            "XGBoost gbtree/hist is split-based; distribution is audited, but feature standardization "
+            "XGBoost gbtree/hist is split-based; distribution is audited, but feature "
+            "standardization "
             "is not treated as a primary fix."
         )
         audit["construction_fold_fitted_state"] = False
         audit["construction_note"] = (
-            "Temporal features are deterministic pre-cutoff transaction summaries; no scaler, encoder, "
+            "Temporal features are deterministic pre-cutoff transaction summaries; no "
+            "scaler, encoder, "
             "or target-derived transform is fitted outside CV folds."
         )
-        result["windows"][str(window_hours)] = {
+        window_results[str(window_hours)] = {
             "audit": audit,
             "metrics": {name: asdict(metrics) for name, metrics in overall.items()},
             "fold_metrics": {
@@ -242,18 +249,26 @@ def run_seed_diagnostic(
     return result
 
 
-def summarize_seed_results(seed_results: list[dict[str, object]], windows: Iterable[int]) -> dict[str, object]:
-    summary: dict[str, object] = {"windows": {}}
+def summarize_seed_results(
+    seed_results: list[dict[str, object]], windows: Iterable[int]
+) -> dict[str, object]:
+    summary_windows: dict[str, object] = {}
+    summary: dict[str, object] = {"windows": summary_windows}
     for window in windows:
         window_key = str(window)
         rows = []
         for result in seed_results:
-            data = result["windows"][window_key]
-            rows.append(data["delta_vs_tabular"])
+            result_windows = result["windows"]
+            assert isinstance(result_windows, dict)
+            data = result_windows[window_key]
+            assert isinstance(data, dict)
+            delta = data["delta_vs_tabular"]
+            assert isinstance(delta, dict)
+            rows.append(delta)
         pr = np.asarray([row["pr_auc"] for row in rows], dtype=float)
         cost = np.asarray([row["expected_cost"] for row in rows], dtype=float)
         recall = np.asarray([row["risk_recall"] for row in rows], dtype=float)
-        summary["windows"][window_key] = {
+        summary_windows[window_key] = {
             "seed_count": len(rows),
             "pr_auc_delta_mean": round(float(np.mean(pr)), 8),
             "pr_auc_delta_std": round(float(np.std(pr)), 8),

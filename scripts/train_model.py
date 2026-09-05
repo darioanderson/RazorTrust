@@ -11,6 +11,7 @@ import mlflow
 from razortrust.ml.dataset import build_training_frame, model_matrix
 from razortrust.ml.evaluation import evaluate_sealed_test
 from razortrust.ml.modeling import train_model_bundle
+from razortrust.ml.real_data import load_real_settlement_dataset
 from razortrust.ml.release import save_model_release
 from razortrust.ml.splits import create_split_manifest, write_split_manifest
 from razortrust.ml.tuning import tune_xgboost
@@ -29,10 +30,19 @@ def main() -> None:
     parser.add_argument("--transactions-per-merchant", type=int, default=80)
     parser.add_argument("--estimators", type=int, default=300)
     parser.add_argument("--hpo-trials", type=int, default=0)
-    parser.add_argument(
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument(
         "--allow-synthetic",
         action="store_true",
         help="Explicitly permit the synthetic mechanics-check generator",
+    )
+    source.add_argument(
+        "--dataset-dir",
+        type=Path,
+        help=(
+            "Hash-verified PUBLIC_REAL or PARTNER_REAL settlement dataset directory; "
+            "raw records are read in place and are not copied into model artifacts"
+        ),
     )
     parser.add_argument("--signer-key-id", default="development-release-key")
     parser.add_argument(
@@ -46,23 +56,29 @@ def main() -> None:
     default_tracking_uri = f"sqlite:///{(ROOT / 'var' / 'mlflow.db').resolve().as_posix()}"
     parser.add_argument("--tracking-uri", default=default_tracking_uri)
     args = parser.parse_args()
-    if not args.allow_synthetic:
-        parser.error("explicitly pass --allow-synthetic for the mechanics-check generator")
     source_tree_sha256 = _source_tree_sha256(ROOT / "src" / "razortrust")
 
-    data_dir = args.output / "dataset"
-    merchants, transactions, holds = generate_dataset(
-        seed=args.seed,
-        merchants_per_family=args.merchants_per_family,
-        transactions_per_merchant=args.transactions_per_merchant,
-    )
-    dataset_manifest = write_dataset(
-        data_dir,
-        seed=args.seed,
-        merchants_per_family=args.merchants_per_family,
-        transactions_per_merchant=args.transactions_per_merchant,
-    )
-    dataset_source = "SYNTHETIC_MECHANICS_ONLY"
+    if args.dataset_dir is not None:
+        merchants, transactions, holds, dataset_manifest = load_real_settlement_dataset(
+            args.dataset_dir
+        )
+        dataset_source = dataset_manifest.data_origin
+        dataset_id = dataset_manifest.dataset_id
+    else:
+        data_dir = args.output / "dataset"
+        merchants, transactions, holds = generate_dataset(
+            seed=args.seed,
+            merchants_per_family=args.merchants_per_family,
+            transactions_per_merchant=args.transactions_per_merchant,
+        )
+        dataset_manifest = write_dataset(
+            data_dir,
+            seed=args.seed,
+            merchants_per_family=args.merchants_per_family,
+            transactions_per_merchant=args.transactions_per_merchant,
+        )
+        dataset_source = "SYNTHETIC_MECHANICS_ONLY"
+        dataset_id = dataset_manifest.dataset_id
     frame = build_training_frame(merchants, transactions, holds)
     split_manifest = create_split_manifest(frame, dataset_manifest.content_sha256, seed=args.seed)
     split_path = args.output / "split_manifest.json"
@@ -75,15 +91,21 @@ def main() -> None:
         mlflow.log_params(
             {
                 "seed": args.seed,
-                "merchants_per_family": args.merchants_per_family,
-                "transactions_per_merchant": args.transactions_per_merchant,
                 "estimators": args.estimators,
                 "source_tree_sha256": source_tree_sha256,
                 "dataset_source": dataset_source,
+                "dataset_id": dataset_id,
                 "dataset_sha256": dataset_manifest.content_sha256,
                 "split_sha256": split_manifest.content_sha256,
             }
         )
+        if args.dataset_dir is None:
+            mlflow.log_params(
+                {
+                    "merchants_per_family": args.merchants_per_family,
+                    "transactions_per_merchant": args.transactions_per_merchant,
+                }
+            )
         tuned_parameters = (
             tune_xgboost(frame, split_manifest, n_trials=args.hpo_trials, seed=args.seed)
             if args.hpo_trials > 0
@@ -99,7 +121,9 @@ def main() -> None:
         )
         run_provenance = {
             "dataset_source": dataset_source,
+            "dataset_id": dataset_id,
             "dataset_sha256": dataset_manifest.content_sha256,
+            "raw_dataset_copied_to_artifacts": args.dataset_dir is None,
         }
         training_path = args.output / "training_report.json"
         _write_report(
@@ -188,6 +212,8 @@ def main() -> None:
         "evaluation_sha256": evaluation.content_sha256,
         "source_tree_sha256": source_tree_sha256,
         "dataset_source": dataset_source,
+        "dataset_id": dataset_id,
+        "dataset_sha256": dataset_manifest.content_sha256,
     }
     print(json.dumps(summary, indent=2))
 

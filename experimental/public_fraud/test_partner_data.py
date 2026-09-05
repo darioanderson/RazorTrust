@@ -6,6 +6,7 @@ import json
 import pytest
 
 from experimental.public_fraud.partner_data import load_real_settlement_dataset
+from razortrust.ml.real_data import settlement_dataset_content_sha256
 from razortrust.synthetic import generate_dataset
 
 
@@ -35,7 +36,7 @@ def test_real_settlement_loader_requires_manifest_hashes_and_counts(tmp_path) ->
         "transaction_count": len(transactions),
         "hold_count": len(holds),
         "file_sha256": hashes,
-        "content_sha256": "a" * 64,
+        "content_sha256": settlement_dataset_content_sha256(tmp_path),
     }
     (tmp_path / "dataset_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
@@ -50,4 +51,37 @@ def test_real_settlement_loader_requires_manifest_hashes_and_counts(tmp_path) ->
 
     (tmp_path / "holds.jsonl").write_text("{}\n", encoding="utf-8")
     with pytest.raises(ValueError, match="hash mismatch"):
+        load_real_settlement_dataset(tmp_path)
+
+
+def test_real_settlement_loader_rejects_false_aggregate_hash(tmp_path) -> None:
+    merchants, transactions, holds = generate_dataset(
+        seed=4, merchants_per_family=1, transactions_per_merchant=12
+    )
+    payloads = {
+        "merchants.jsonl": merchants,
+        "transactions.jsonl": transactions,
+        "holds.jsonl": holds,
+    }
+    hashes = {}
+    for filename, rows in payloads.items():
+        content = "".join(
+            json.dumps(row.model_dump(mode="json"), sort_keys=True) + "\n" for row in rows
+        )
+        (tmp_path / filename).write_text(content, encoding="utf-8")
+        hashes[filename] = hashlib.sha256((tmp_path / filename).read_bytes()).hexdigest()
+    manifest = {
+        "dataset_id": "partner-redacted-aggregate-test",
+        "data_origin": "PARTNER_REAL",
+        "license_or_agreement": "DPA-test",
+        "permitted_purpose": "Settlement risk model validation",
+        "merchant_count": len(merchants),
+        "transaction_count": len(transactions),
+        "hold_count": len(holds),
+        "file_sha256": hashes,
+        "content_sha256": "a" * 64,
+    }
+    (tmp_path / "dataset_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="aggregate content hash mismatch"):
         load_real_settlement_dataset(tmp_path)

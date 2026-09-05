@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from statistics import fmean, median, pstdev
 from typing import Literal
@@ -276,7 +277,7 @@ class SqlLiveFeatureStore:
 
 
 def _latest_by(
-    rows: list[object], key_attr: str, observed_attr: str = "observed_at"
+    rows: Sequence[object], key_attr: str, observed_attr: str = "observed_at"
 ) -> list[object]:
     latest: dict[str, object] = {}
     for row in sorted(rows, key=lambda item: getattr(item, observed_attr)):
@@ -284,7 +285,7 @@ def _latest_by(
     return list(latest.values())
 
 
-def _telemetry_maps(rows: list[object]) -> tuple[dict[str, object], dict[str, object]]:
+def _telemetry_maps(rows: Sequence[object]) -> tuple[dict[str, object], dict[str, object]]:
     by_order: dict[str, object] = {}
     by_payment: dict[str, object] = {}
     for row in sorted(rows, key=lambda item: item.observed_at):
@@ -295,7 +296,7 @@ def _telemetry_maps(rows: list[object]) -> tuple[dict[str, object], dict[str, ob
 
 
 def _status_timestamp_by_payment(
-    rows: list[object], *, status: str | None = None
+    rows: Sequence[object], *, status: str | None = None
 ) -> dict[str, datetime]:
     result: dict[str, datetime] = {}
     for row in sorted(rows, key=lambda item: item.observed_at):
@@ -309,11 +310,11 @@ def _status_timestamp_by_payment(
 def _make_events(
     *,
     account_id: str,
-    payment_rows: list[object],
-    telemetry_rows: list[object],
-    order_by_payment: dict[str, str | None],
-    refund_rows: list[object],
-    dispute_rows: list[object],
+    payment_rows: Sequence[object],
+    telemetry_rows: Sequence[object],
+    order_by_payment: Mapping[str, str | None],
+    refund_rows: Sequence[object],
+    dispute_rows: Sequence[object],
 ) -> tuple[list[TransactionEvent], int]:
     latest_payments = _latest_by(payment_rows, "payment_id")
     by_order, by_payment = _telemetry_maps(telemetry_rows)
@@ -440,11 +441,11 @@ def build_feature_contract_preview(
     *,
     account_id: str,
     as_of: datetime,
-    payment_rows: list[object],
-    refund_rows: list[object],
-    dispute_rows: list[object],
-    telemetry_rows: list[object],
-    order_by_payment: dict[str, str | None],
+    payment_rows: Sequence[object],
+    refund_rows: Sequence[object],
+    dispute_rows: Sequence[object],
+    telemetry_rows: Sequence[object],
+    order_by_payment: Mapping[str, str | None],
 ) -> FeatureContractPreview:
     as_of = as_of.astimezone(UTC)
     current_start = as_of - timedelta(hours=CURRENT_WINDOW_HOURS)

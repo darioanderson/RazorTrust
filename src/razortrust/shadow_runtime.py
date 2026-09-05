@@ -33,6 +33,7 @@ def load_shadow_analysis_runtime() -> ShadowAnalysisRuntime:
     public_key_path = os.getenv("RAZORTRUST_SHADOW_MODEL_PUBLIC_KEY_PATH")
     expected = os.getenv("RAZORTRUST_SHADOW_MODEL_EXPECTED_VERSION", EXPECTED_CHAMPION)
 
+    model: RiskModel
     if not release_path or not public_key_path:
         reason = "shadow analysis model release is not configured"
         model = UnavailableRiskModel(reason)

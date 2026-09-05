@@ -153,7 +153,7 @@ def build_sequence_example(
     transactions: list[TransactionEvent],
     cutoff: datetime,
     label: int,
-    attack_family: str,
+    attack_family: str | None,
     window_hours: int = 24,
     max_events: int = 128,
 ) -> SequenceExample:

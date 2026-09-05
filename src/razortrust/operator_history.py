@@ -245,9 +245,13 @@ def audit_csv_bytes(data: bytes) -> CsvCompatibilityReport:
 
 class OperatorHistoryStore:
     def __init__(self, root: str | Path | None = None) -> None:
-        configured = root or os.getenv(
-            "RAZORTRUST_OPERATOR_HISTORY_PATH",
-            "/app/var/operator-history",
+        configured = (
+            root
+            if root is not None
+            else os.getenv(
+                "RAZORTRUST_OPERATOR_HISTORY_PATH",
+                "/app/var/operator-history",
+            )
         )
         self.root = Path(configured)
 

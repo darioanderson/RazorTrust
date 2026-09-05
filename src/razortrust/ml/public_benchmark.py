@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 from sklearn.isotonic import IsotonicRegression
@@ -261,7 +261,7 @@ def evaluate_held_out(
 
 
 def serialize(value: object) -> dict[str, object]:
-    return asdict(value)  # type: ignore[arg-type]
+    return asdict(cast(Any, value))
 
 
 def _fit_method(

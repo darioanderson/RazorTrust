@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -50,7 +51,7 @@ EDGE_TYPES = (
 
 @dataclass(frozen=True)
 class HeteroSnapshot:
-    data: object
+    data: Any
     target_transaction_index: int
     transaction_id: int
     cutoff: pd.Timestamp

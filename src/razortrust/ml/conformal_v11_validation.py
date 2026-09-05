@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 from scipy.stats import binomtest
 
@@ -55,9 +57,9 @@ def corrected_v11_gate(
         undercoverage_test["statistically_significant_undercoverage"]
     )
     routing_invariants = (
-        int(routing["ambiguous_release_invariant_violations"]) == 0
-        and int(routing["empty_release_invariant_violations"]) == 0
-        and int(routing["full_release_invariant_violations"]) == 0
+        int(cast(int, routing["ambiguous_release_invariant_violations"])) == 0
+        and int(cast(int, routing["empty_release_invariant_violations"])) == 0
+        and int(cast(int, routing["full_release_invariant_violations"])) == 0
     )
 
     passed = (

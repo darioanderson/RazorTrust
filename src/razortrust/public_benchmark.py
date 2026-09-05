@@ -209,9 +209,13 @@ def choose_cost_threshold(
 
 class PublicBenchmarkService:
     def __init__(self, root: str | Path | None = None) -> None:
-        configured = root or os.getenv(
-            "RAZORTRUST_PUBLIC_BENCHMARK_PATH",
-            "/app/var/public-benchmark",
+        configured = (
+            root
+            if root is not None
+            else os.getenv(
+                "RAZORTRUST_PUBLIC_BENCHMARK_PATH",
+                "/app/var/public-benchmark",
+            )
         )
         self.root = Path(configured) / "ulb-creditcard-v1"
         self._runtime: RuntimeBundle | None = None
@@ -254,6 +258,7 @@ class PublicBenchmarkService:
 
         self.root.mkdir(parents=True, exist_ok=True)
         if not force and self._load_runtime():
+            assert self._runtime is not None
             return self._runtime.summary
 
         import joblib
@@ -941,7 +946,11 @@ class PublicBenchmarkService:
         summary = BenchmarkStatus.model_validate_json(
             self.summary_path.read_text(encoding="utf-8")
         )
-        if not summary.ready or summary.benchmark_version != BENCHMARK_VERSION:
+        if (
+            not summary.ready
+            or summary.benchmark_version != BENCHMARK_VERSION
+            or summary.threshold is None
+        ):
             return False
 
         model = xgb.XGBClassifier()
@@ -971,4 +980,5 @@ class PublicBenchmarkService:
             raise LookupError(
                 "public benchmark is not prepared; run the prepare endpoint first"
             )
+        assert self._runtime is not None
         return self._runtime

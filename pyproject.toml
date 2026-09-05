@@ -11,7 +11,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi[standard-no-fastapi-cloud-cli]==0.141.1",
   "pydantic==2.13.4",
-  "cryptography>=49,<50",
+  "cryptography>=50,<51",
   "SQLAlchemy==2.0.51",
   "alembic==1.19.1",
   "asyncpg>=0.31,<0.32",
@@ -37,7 +37,10 @@ ml = [
   "xgboost==3.4.1",
   "shap==0.52.0",
   "evidently==0.7.21",
-  "mlflow==3.15.2",
+  # The training script only needs client-side experiment tracking. The full
+  # server package pins vulnerable cryptography<50; skinny keeps the same
+  # tracking API without unnecessary server dependencies.
+  "mlflow-skinny==3.15.2",
   "optuna>=4.9,<5",
   "skops>=0.13,<1",
 ]
@@ -127,6 +130,38 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # FastAPI's dependency-call defaults are framework declarations, not mutable defaults.
 "src/razortrust/api.py" = ["B008"]
 "alembic/versions/*.py" = ["E501"]
+
+[tool.ruff.format]
+# Formatter-only baseline captured with Ruff 0.16.6 on 2026-09-05. These legacy
+# and validated research/runtime files remain fully covered by `ruff check`.
+# Remove entries individually when a file is deliberately reformatted and reviewed.
+exclude = [
+  "scripts/run_phase3b_fdh_graph_research.py",
+  "scripts/run_phase3b_v21_calibration_diagnostic.py",
+  "scripts/run_phase3b_v2_hetero_research.py",
+  "scripts/run_phase5_public_drift_validation.py",
+  "scripts/run_phase6_conformal_validation.py",
+  "scripts/run_phase6_v11_fresh_confirmation.py",
+  "scripts/run_public_fraud_benchmark.py",
+  "src/razortrust/ground_truth.py",
+  "src/razortrust/layer_execution.py",
+  "src/razortrust/ml/conformal_v11_validation.py",
+  "src/razortrust/ml/conformal_validation.py",
+  "src/razortrust/ml/drift_validation.py",
+  "src/razortrust/ml/fdh_graph.py",
+  "src/razortrust/ml/fdh_hetero_graph.py",
+  "src/razortrust/ml/phase3b_v21_diagnostics.py",
+  "src/razortrust/ml/sequence_models.py",
+  "src/razortrust/operator_history.py",
+  "src/razortrust/payment_case_bridge.py",
+  "src/razortrust/public_benchmark.py",
+  "tests/test_operator_history.py",
+  "tests/test_payment_case_bridge.py",
+  "tests/test_phase5_drift_validation.py",
+  "tests/test_phase6_v11_validation.py",
+  "tests/test_public_benchmark.py",
+  "tests/test_web_command_center.py",
+]
 
 [tool.mypy]
 python_version = "3.12"

@@ -3,7 +3,9 @@ from razortrust.synthetic import generate_dataset
 
 
 def test_temporal_diagnostic_is_point_in_time_and_reports_ablation() -> None:
-    merchants, transactions, holds = generate_dataset(seed=11, merchants_per_family=2, transactions_per_merchant=16)
+    merchants, transactions, holds = generate_dataset(
+        seed=11, merchants_per_family=2, transactions_per_merchant=16
+    )
     result = run_seed_diagnostic(merchants, transactions, holds, seed=11, folds=2, windows=[6, 24])
     for window in ("6", "24"):
         audit = result["windows"][window]["audit"]

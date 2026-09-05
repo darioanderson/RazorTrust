@@ -18,9 +18,17 @@ def _parse_int_list(value: str) -> list[int]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Audit Phase 4 temporal feature construction before closing the phase")
-    parser.add_argument("--output", type=Path, default=ROOT / "artifacts" / "research" / "phase4-temporal-diagnostic")
-    parser.add_argument("--seeds", type=_parse_int_list, default=[20260904, 20260905, 20260906, 20260907, 20260908])
+    parser = argparse.ArgumentParser(
+        description="Audit Phase 4 temporal feature construction before closing the phase"
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=ROOT / "artifacts" / "research" / "phase4-temporal-diagnostic",
+    )
+    parser.add_argument(
+        "--seeds", type=_parse_int_list, default=[20260904, 20260905, 20260906, 20260907, 20260908]
+    )
     parser.add_argument("--windows", type=_parse_int_list, default=[1, 6, 24, 72])
     parser.add_argument("--merchants-per-family", type=int, default=4)
     parser.add_argument("--transactions-per-merchant", type=int, default=32)
@@ -54,10 +62,16 @@ def main() -> None:
         for window, data in seed_result["windows"].items():
             audit = data["audit"]
             if audit["point_in_time_violations"] or audit["window_violations"]:
-                engineering_failures.append(f"seed={seed_result['seed']} window={window}: timestamp/window invariant failure")
+                engineering_failures.append(
+                    f"seed={seed_result['seed']} window={window}: "
+                    "timestamp/window invariant failure"
+                )
             for feature, stats in audit["features"].items():
                 if stats["nan_count"] or stats["inf_count"]:
-                    engineering_failures.append(f"seed={seed_result['seed']} window={window} feature={feature}: non-finite values")
+                    engineering_failures.append(
+                        f"seed={seed_result['seed']} window={window} "
+                        f"feature={feature}: non-finite values"
+                    )
 
     harmful_features = []
     for seed_result in seed_results:
@@ -67,10 +81,21 @@ def main() -> None:
         metrics = data["metrics"]
         full_pr = metrics["temporal_full"]["pr_auc"]
         full_cost = metrics["temporal_full"]["expected_cost"]
-        for feature in ("burst_score_10m", "amount_autocorrelation", "auth_failure_run_max", "new_device_transition_rate"):
+        for feature in (
+            "burst_score_10m",
+            "amount_autocorrelation",
+            "auth_failure_run_max",
+            "new_device_transition_rate",
+        ):
             drop = metrics[f"drop_one::{feature}"]
             if drop["pr_auc"] > full_pr + 0.01 and drop["expected_cost"] <= full_cost:
-                harmful_features.append({"seed": seed_result["seed"], "feature": feature, "evidence": "drop-one improves PR-AUC by >0.01 without worsening cost"})
+                harmful_features.append(
+                    {
+                        "seed": seed_result["seed"],
+                        "feature": feature,
+                        "evidence": "drop-one improves PR-AUC by >0.01 without worsening cost",
+                    }
+                )
 
     w24 = summary["windows"].get("24", {})
     if engineering_failures:
@@ -103,9 +128,19 @@ def main() -> None:
         "engineering_failures": engineering_failures,
         "harmful_feature_evidence": harmful_features,
         "notes": {
-            "scaling": "XGBoost gbtree/hist is split-based. Feature distributions are audited, but standardization is not treated as a primary remedy.",
-            "missingness": "Current temporal construction returns zeros when no events exist. The diagnostic separately tests history flags/counts to detect whether zero/no-history conflation matters.",
-            "fold_safety": "Temporal features are deterministic pre-cutoff summaries and have no train-fitted scaler/encoder/target transform outside the grouped folds.",
+            "scaling": (
+                "XGBoost gbtree/hist is split-based. Feature distributions are audited, "
+                "but standardization is not treated as a primary remedy."
+            ),
+            "missingness": (
+                "Current temporal construction returns zeros when no events exist. The "
+                "diagnostic separately tests history flags/counts to detect whether "
+                "zero/no-history conflation matters."
+            ),
+            "fold_safety": (
+                "Temporal features are deterministic pre-cutoff summaries and have no "
+                "train-fitted scaler/encoder/target transform outside the grouped folds."
+            ),
             "sealed_test_used": False,
             "stress_set_used": False,
             "production_action_eligible": False,

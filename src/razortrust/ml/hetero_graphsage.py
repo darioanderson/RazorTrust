@@ -19,7 +19,7 @@ def make_hetero_graphsage_classifier(hidden_dim: int = 32):
     torch = _torch()
     from torch_geometric.nn import HeteroConv, SAGEConv
 
-    class HeteroGraphSageRiskClassifier(torch.nn.Module):
+    class HeteroGraphSageRiskClassifier(torch.nn.Module):  # type: ignore[name-defined]
         def __init__(self) -> None:
             super().__init__()
             self.conv1 = HeteroConv(

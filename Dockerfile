@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS runtime
+FROM python:3.12.14-alpine3.24@sha256:b64631e04e4920160c50fbe8d8df828f7f35f06f425cb44aa09bca53e708a35a AS runtime
 
 ARG INSTALL_EXTRAS=""
 
@@ -17,7 +17,8 @@ RUN if [ -n "$INSTALL_EXTRAS" ]; then \
       python -m pip install .; \
     fi
 
-RUN useradd --create-home --uid 10001 appuser \
+RUN addgroup -S -g 10001 appuser \
+    && adduser -S -D -h /home/appuser -u 10001 -G appuser appuser \
     && mkdir -p /app/var \
     && chown -R appuser:appuser /app
 USER appuser
