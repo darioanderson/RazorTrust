@@ -17,7 +17,7 @@ flowchart TD
     C --> D[Authoritative History]
     D --> E[Data Quality Firewall]
 
-    E -->|Insufficient history| H1[BLOCK ML / EVIDENCE NEEDED]
+    E -->|Insufficient history| H1[OPEN DIAGNOSTIC VIEW / EVIDENCE NEEDED]
     E -->|Valid| F[Point-in-Time Features]
 
     F --> G[XGBoost Risk Model]

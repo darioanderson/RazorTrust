@@ -157,7 +157,7 @@ flowchart TD
     B --> C[Secure Ingestion]
     C --> D[Authoritative History]
     D --> E[Data Quality Firewall]
-    E -->|Insufficient history| X[BLOCK ML / EVIDENCE NEEDED]
+    E -->|Insufficient history| X[OPEN DIAGNOSTIC VIEW / EVIDENCE NEEDED]
     E -->|Valid| F[Point-in-Time Features]
     F --> G[XGBoost]
     G --> H[Probability Calibration]
