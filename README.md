@@ -1,275 +1,116 @@
 # RazorTrust
 
-> A defense-only AI Risk Manager for payment and settlement review - measurable, explainable, bounded, and human-gated.
+> A leakage-safe, explainable AI risk workspace for payment and settlement review.
 
-Built for the **Razorpay AI Buildathon - Track 02: AI Risk Manager**.
+[![CI](https://github.com/darioanderson/RazorTrust/actions/workflows/ci.yml/badge.svg)](https://github.com/darioanderson/RazorTrust/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-RazorTrust combines supervised fraud scoring, anomaly detection, calibrated probabilities, conformal uncertainty, SHAP explanations, provenance, deterministic OPA guardrails, audit evidence, and mandatory human authorization.
+RazorTrust turns payment and merchant activity into an auditable recommendation:
 
-**RazorTrust does not autonomously release money.**
+- `RELEASE` — available evidence supports release;
+- `EVIDENCE_NEEDED` — uncertainty can be reduced with specific evidence;
+- `ESCALATE` — risk or unresolved uncertainty requires specialist review.
 
----
+The system reconstructs point-in-time history, rejects unsafe inputs, builds a locked 13-feature vector, runs calibrated risk and novelty analysis, explains the strongest signals, and applies deterministic policy controls. A conclusion layer then presents the complete case story and next action in one operator view.
 
-## Buildathon result at a glance
+**AI recommendations never release funds automatically. A named human remains the final authority.**
 
-### Public real-world benchmark
+## Current operating status
 
-RazorTrust includes a research-only benchmark built on the public anonymized **ULB / Worldline credit-card fraud dataset**.
+| Capability | Status |
+|---|---|
+| Operator decision mode | `HUMAN_ONLY` |
+| Operational runtime | `human-only@1` |
+| Signed analysis model | `xgb-if-settlement@2` |
+| Analysis role | Shadow decision support; no money-movement authority |
+| Policy enforcement | OPA, fail closed |
+| Razorpay integration | Test/reconciliation workflow |
+| Public fraud benchmark | Research only |
+| Dispute model | Pipeline ready; promotion awaits sufficient mature real labels |
 
-| Item | Verified result |
-|---|---:|
-| Benchmark version | `ulb-creditcard-xgb-if@1.3` |
-| Rows | 284,807 |
-| Fraud-labelled rows | 492 |
-| Split | chronological 60 / 20 / 20 |
-| Frozen evaluation rows | 56,962 |
-| Average Precision | 0.7924385 |
-| ROC-AUC | 0.9784368 |
-| Precision | **86.36%** |
-| Recall | **76.00%** |
-| F1 | **80.85%** |
-| Brier score | 0.000402506 |
-| True positives | 57 |
-| False positives | **9** |
-| True negatives | 56,878 |
-| False negatives | 18 |
-| False-positive rate | **0.0158%** |
-| Frozen classifier threshold | 0.25 |
-| Evaluation cost units | 369 |
+`xgb-if-settlement@2` is the current signed analysis champion. It can inform a case recommendation only after the data-quality firewall passes. It is deliberately isolated from final financial execution.
 
-Frozen evaluation confusion matrix:
-
-```text
-                      Predicted
-                   Legit     Fraud
-Actual Legit      56,878         9
-Actual Fraud          18        57
-```
-
-Cost model used for classifier threshold selection:
-
-```text
-false-negative cost = 20
-false-positive cost = 1
-```
-
-Threshold selection is performed on calibration data, not on frozen evaluation labels.
-
-See [`docs/buildathon-final/RESULTS.md`](docs/buildathon-final/RESULTS.md).
-
----
-
-## Safety is part of the model contract
-
-The validated live runtime is intentionally human-gated:
-
-```text
-decision_mode = human_only
-risk_runtime = human-only@1
-policy_mode = opa
-production_action_eligible = false
-automatic_release_enabled = false
-human_authorization_required = true
-```
-
-The public benchmark is research-only and cannot replace the settlement production runtime.
-
-AI may:
-
-- score risk;
-- identify anomalous behavior;
-- calibrate probability;
-- explain contributing signals;
-- express uncertainty;
-- request evidence;
-- recommend escalation or review.
-
-AI may not:
-
-- automatically release settlement funds;
-- bypass OPA;
-- convert a public benchmark result into a production money action;
-- silently promote a research model;
-- resolve a hold without named human authorization.
-
-The settlement-release research program deliberately stopped when no candidate met the autonomous-release safety gate:
-
-```text
-FINAL_ML_STOP_NO_SAFE_RELEASE_CANDIDATE
-```
-
-A failed promotion gate is treated as evidence, not something to tune away.
-
----
-
-## Blind evaluation integrity
-
-A blind held-out case is returned without its source label:
-
-```text
-source_label = null
-label_revealed = false
-```
-
-The validated runtime executes:
-
-```text
-SOURCE_PROVENANCE
-DATASET_INTEGRITY
-CHRONOLOGICAL_SPLIT
-BENCHMARK_XGBOOST
-PROBABILITY_CALIBRATION
-ISOLATION_FOREST
-SHAP
-CONFORMAL_UNCERTAINTY
-BENCHMARK_RECOMMENDATION
-OPA
-SOURCE_GROUND_TRUTH
-HUMAN_ONLY
-```
-
-Ground truth is read only after scoring and recommendation:
-
-```text
-truth_access_mode = POST_RECOMMENDATION_ONLY
-used_for_model_scoring = false
-used_for_calibration_of_this_case = false
-held_out_labels_used_for_recommendation = false
-```
-
-For the validated blind trace:
-
-- OPA status: `BLOCKED`;
-- production policy input submitted: `false`;
-- final state: `WAITING_FOR_HUMAN`;
-- automatic release: `false`;
-- human authorization required: `true`.
-
-The frozen evaluation split has been inspected and is not used for further model or threshold tuning.
-
----
-
-## Architecture
+## System flow
 
 ```mermaid
-flowchart TD
-    A[Payment / Provider Event] --> B[Source Provenance]
-    B --> C[Secure Ingestion]
-    C --> D[Authoritative History]
-    D --> E[Data Quality Firewall]
-    E -->|Insufficient history| X[OPEN DIAGNOSTIC VIEW / EVIDENCE NEEDED]
-    E -->|Valid| F[Point-in-Time Features]
-    F --> G[XGBoost]
-    G --> H[Probability Calibration]
-    H --> I[Isolation Forest]
-    I --> J[Tree SHAP]
-    J --> K[Conformal Uncertainty]
-    K --> L[Cost-Aware Recommendation]
-    L --> M[OPA Safety Boundary]
-    M -->|Research benchmark| N[BLOCK Production Policy]
-    M --> O[Post-Recommendation Ground Truth]
-    O --> P[Evaluation / Audit]
-    P --> Q[HUMAN ONLY]
-    Q --> R[Named Human Authorization]
+flowchart LR
+    A[Razorpay events or imported history] --> B[Secure ingestion and provenance]
+    B --> C[Transaction reconstruction]
+    C --> D[Data-quality firewall]
+    D -->|Pass| E[Locked point-in-time features]
+    D -->|Fail| K[Exact remediation request]
+    E --> F[Calibrated XGBoost + Isolation Forest]
+    F --> G[SHAP, uncertainty and cost-aware policy]
+    G --> H[OPA guardrails]
+    H --> I[Conclusion layer]
+    K --> I
+    I --> J[Named human decision]
 ```
 
-Detailed architecture: [`docs/buildathon-final/ARCHITECTURE.md`](docs/buildathon-final/ARCHITECTURE.md)
+The production-facing path is designed to fail closed. Missing history, incomplete telemetry, invalid provenance, unavailable artifacts, or policy failure cannot silently become a release recommendation.
 
----
+## What the platform provides
 
-## What RazorTrust implements
+### Real payment and merchant history
 
-### Risk and ML
+- Razorpay webhook signature verification against the exact raw body.
+- Idempotent event handling using the provider event ID.
+- Provider-backed payment and stored-hold lookup.
+- Reconstructed baseline and current activity windows.
+- JSON and CSV history import with strict server-side validation.
+- Import provenance, content hashing, and source attestation.
+- Privacy-minimised storage and telemetry.
 
-- Point-in-time risk features.
-- Locked feature contracts.
-- XGBoost supervised scoring.
-- Sigmoid probability calibration.
-- Legitimate-only Isolation Forest novelty detection.
-- Tree SHAP explanations.
-- Split-conformal uncertainty.
-- Cost-aware recommendation logic.
-- Drift and research-gate instrumentation.
-- Explicit research-only public benchmark isolation.
+### Leakage-safe ML
 
-### Evaluation integrity
+- Chronological train, calibration, and frozen-evaluation splits.
+- Point-in-time feature construction with a locked 13-feature contract.
+- XGBoost supervised risk scoring.
+- Calibrated probabilities.
+- Legitimate-reference Isolation Forest novelty scoring.
+- Tree SHAP signal explanations.
+- Cost-aware action selection.
+- Signed artifact manifests and explicit promotion gates.
 
-- Chronological train / calibration / frozen-evaluation partitioning.
-- Held-out labels blocked from scoring and recommendation.
-- Post-recommendation truth access.
-- Calibration-legitimate-only Isolation Forest reference.
-- Raw and normalized dataset SHA256 verification.
-- Strict benchmark metadata schema with unknown fields rejected.
-- Full regression suite and blind runtime integrity gate.
+Autoencoder/OOD, conformal uncertainty, graph intelligence, and newer temporal layers remain research capabilities until they demonstrate measurable safety and cost improvement without increasing legitimate-merchant friction.
 
-### Financial safety
+### Safe operations
 
-- Explicit `human_only` enforcement mode.
-- OPA policy boundary.
-- Named human authorization.
-- No automatic settlement release.
-- Idempotent hold, evidence and authorization operations.
-- Evidence-round and state-machine constraints.
-- Fail-closed readiness and policy behavior.
-- Signed model-release infrastructure for research/development provenance.
+- Deterministic OPA guardrails.
+- Human-only authorization for unresolved and high-risk cases.
+- Exact evidence requests when additional facts can resolve uncertainty.
+- Idempotent holds, evidence submissions, and authorization actions.
+- Hash-linked audit records and transactional outbox behavior.
+- Evidence dossiers, trace propagation, and model attribution.
+- A complete conclusion layer covering source, history, quality, risk, dispute status, strongest signals, unresolved questions, and next action.
 
-### Audit and operations
+## Operator workspace
 
-- PostgreSQL-backed persistence.
-- Transactional audit/outbox behavior.
-- Hash-linked audit evidence.
-- Trace propagation and OpenTelemetry support.
-- Browser-based operator console.
-- Evidence dossier generation.
-- Case provenance and attribution records.
-- Human override and escalation workflows.
+The single-page operator interface is served from the API root. It supports:
 
----
+- provider-backed payment selection;
+- stored-hold lookup;
+- full case-field inspection;
+- real-history JSON paste or file upload;
+- deterministic CSV-to-JSON conversion before validated import;
+- reason, cohort, scoring-window, and review context entry;
+- data-quality blockers with concrete remediation;
+- stage-by-stage execution visibility;
+- calibrated probabilities, novelty, explanations, and policy outcome;
+- evidence submission and named human authorization;
+- a final narrative that connects every system layer.
 
-## Razorpay webhook ingestion
+The interface does not generate hidden sample records or substitute demo values for missing real history.
 
-RazorTrust includes a privacy-minimised Razorpay webhook ingestion gateway separated from financial execution.
-
-It:
-
-- verifies `X-Razorpay-Signature` against the exact raw request body;
-- uses `x-razorpay-event-id` for duplicate-delivery protection;
-- stores a minimal event summary;
-- hashes the raw body for integrity;
-- discards unnecessary raw payment/customer data after verification;
-- never treats webhook ingestion as authority to release money.
-
-Configuration:
-
-```text
-RAZORTRUST_RAZORPAY_ENABLED=false
-RAZORTRUST_RAZORPAY_MODE=test
-RAZORTRUST_RAZORPAY_KEY_ID=
-RAZORTRUST_RAZORPAY_KEY_SECRET=
-RAZORTRUST_RAZORPAY_WEBHOOK_SECRET=
-RAZORTRUST_RAZORPAY_BASE_URL=https://api.razorpay.com/v1
-```
-
-Relevant endpoints:
-
-```text
-POST /v1/integrations/razorpay/webhook
-GET  /v1/integrations/razorpay/status
-```
-
-Keep Razorpay integration in test/shadow mode until end-to-end operational review controls are validated.
-
----
-
-## Run the validated HUMAN_ONLY stack
+## Quick start
 
 ### Requirements
 
-- Docker Desktop / Docker Compose
+- Docker Desktop with Docker Compose
 - Git
-- Local ports used by the stack available
+- Local ports `8000`, `5432`, `6379`, and `8181` available, or equivalent overrides
 
-From the repository root:
+From the repository root in PowerShell:
 
 ```powershell
 cd C:\Projects\RazorTrust
@@ -281,221 +122,199 @@ docker compose `
   up -d --build
 ```
 
-Check services:
-
-```powershell
-docker compose `
-  -f .\docker-compose.yml `
-  -f .\docker-compose.human-only.yml `
-  -f .\docker-compose.layer-execution.yml `
-  ps
-```
-
-Verify the safety contract:
+Check readiness:
 
 ```powershell
 curl.exe --http1.1 http://localhost:8000/health/ready
 ```
 
-Expected safety fields:
+The response should identify the human-only operational runtime and the signed shadow analysis model:
 
 ```json
 {
   "status": "ready",
   "decision_mode": "human_only",
   "risk_runtime": "human-only@1",
-  "policy_mode": "opa",
-  "model_version": "human-only@1"
+  "analysis_runtime_status": "READY",
+  "analysis_model_version": "xgb-if-settlement@2",
+  "policy_mode": "opa"
 }
 ```
 
 Open:
 
-- Operator UI: `http://localhost:8000/`
-- OpenAPI: `http://localhost:8000/docs`
+- Operator workspace: [http://localhost:8000/](http://localhost:8000/)
+- OpenAPI documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-Do not set `RAZORTRUST_MODEL_RELEASE_PATH` for the validated Buildathon HUMAN_ONLY runtime.
-
----
-
-## Check the public benchmark
-
-Read benchmark status:
+Stop the stack with the same Compose files:
 
 ```powershell
-curl.exe --http1.1 `
-  http://localhost:8000/v1/public-benchmark/ulb/status
+docker compose `
+  -f .\docker-compose.yml `
+  -f .\docker-compose.human-only.yml `
+  -f .\docker-compose.layer-execution.yml `
+  down
 ```
 
-Validated frozen artifact:
+## When a real case can be scored
+
+The default settlement analysis contract requires:
+
+| Requirement | Default |
+|---|---:|
+| Historical baseline | 30 days |
+| Minimum baseline transactions | 30 |
+| Minimum baseline active days | 7 |
+| Current activity window | 24 hours |
+| First-party telemetry | Complete for required fields |
+
+A newly created provider test payment usually has no meaningful merchant baseline. In that case, `INSUFFICIENT_BASELINE_TRANSACTIONS`, `INSUFFICIENT_BASELINE_ACTIVE_DAYS`, or `CURRENT_WINDOW_TELEMETRY_INCOMPLETE` is the correct result. The UI explains which history or telemetry must be imported or collected; it does not fabricate a score.
+
+Once authoritative history satisfies the contract, the feature engine and signed shadow model can run. The resulting recommendation still passes through OPA and named human review.
+
+## Real-history import
+
+The operator can import an authoritative history bundle as JSON. Every imported record is validated by the API, linked to its source, and hashed for traceability. CSV files are converted deterministically in the browser and then submitted through the same validated JSON contract.
+
+Imported data should represent actual processor, reconciliation, order, fulfilment, refund, dispute, or first-party telemetry records. Synthetic rows must not be presented as real operational history.
+
+The dispute-training pipeline also requires mature labels with a known observation horizon. Pipeline readiness does not imply that a deployable dispute model exists. RazorTrust refuses to claim training readiness when authoritative stores or sufficient mature outcomes are unavailable.
+
+## Public real-world benchmark
+
+RazorTrust includes a research-only benchmark built from the public anonymized ULB/Worldline credit-card fraud dataset.
+
+| Metric | Frozen evaluation result |
+|---|---:|
+| Benchmark artifact | `ulb-creditcard-xgb-if@1.3` |
+| Dataset rows | 284,807 |
+| Fraud-labelled rows | 492 |
+| Split | Chronological 60 / 20 / 20 |
+| Frozen evaluation rows | 56,962 |
+| Average precision | 0.7924385 |
+| ROC-AUC | 0.9784368 |
+| Precision | 86.36% |
+| Recall | 76.00% |
+| F1 | 80.85% |
+| Brier score | 0.000402506 |
+| False-positive rate | 0.0158% |
+| Classifier threshold | 0.25 |
+
+Frozen confusion matrix:
 
 ```text
-status = READY
-benchmark_version = ulb-creditcard-xgb-if@1.3
-research_only = true
-production_action_eligible = false
-automatic_release_enabled = false
-human_authorization_required = true
-held_out_labels_used_for_recommendation = false
-if_reference_split = CALIBRATION_LEGITIMATE_ONLY
+                      Predicted
+                   Legit     Fraud
+Actual Legit      56,878         9
+Actual Fraud          18        57
 ```
 
-For the Buildathon demo, use the already-prepared artifact. Do not retrain or retune the frozen evaluation result to improve presentation metrics.
+The threshold was selected using calibration data with a false-negative cost of 20 and false-positive cost of 1. Frozen evaluation labels were not used for threshold tuning.
 
----
+This benchmark demonstrates measurable classification and calibration behavior on a real-world anonymized dataset. It is not Razorpay settlement ground truth, not a dispute model, and not eligible to authorize a production action.
 
-## Five-minute judge demo
+Read the loaded benchmark status:
 
-Final timed script:
+```powershell
+curl.exe --http1.1 http://localhost:8000/v1/public-benchmark/ulb/status
+```
 
-[`docs/buildathon-final/DEMO-SCRIPT.md`](docs/buildathon-final/DEMO-SCRIPT.md)
+## Core API surface
 
-The demo is structured around five questions:
+| Endpoint | Purpose |
+|---|---|
+| `GET /health/ready` | Operational, policy, and analysis readiness |
+| `POST /v1/integrations/razorpay/webhook` | Verified Razorpay event ingestion |
+| `GET /v1/integrations/razorpay/status` | Provider configuration and ingestion status |
+| `GET /v1/integrations/razorpay/payment-candidates` | Provider payments available to inspect |
+| `POST /v1/integrations/razorpay/payments/{payment_id}/case` | Reconstruct a provider payment as a review case |
+| `GET /v1/operator-history/candidates` | Imported transactions available to inspect |
+| `POST /v1/operator-history/import` | Validate and import an authoritative history bundle |
+| `POST /v1/operator-history/{dataset_id}/transactions/{transaction_id}/layer-execution` | Execute an imported-history trace |
+| `POST /v1/holds/{hold_id}/layer-execution` | Execute a stored or reconstructed case trace |
+| `GET /v1/public-benchmark/ulb/status` | Read the frozen public benchmark result |
 
-1. What financial-risk problem does RazorTrust solve?
-2. What measurable result does the detector achieve?
-3. What is the honest false-positive and false-negative behavior?
-4. Can the AI recommendation cross the financial safety boundary?
-5. What happens when the system is uncertain or wrong?
+The OpenAPI page at `/docs` is the authoritative reference for request and response schemas in the running version.
 
-Answer to question 4:
+## Razorpay configuration
 
-> No. OPA blocks the research benchmark from production policy and final authority remains HUMAN_ONLY.
-
----
-
-## Evidence package
-
-The validated core has been cryptographically frozen and a final evidence bundle generated under:
+Razorpay integration is disabled by default and should remain in test or shadow mode until operational controls are validated end to end.
 
 ```text
-artifacts/research/validated-core-freeze-*
-artifacts/submission/razortrust-evidence-*
+RAZORTRUST_RAZORPAY_ENABLED=false
+RAZORTRUST_RAZORPAY_MODE=test
+RAZORTRUST_RAZORPAY_KEY_ID=
+RAZORTRUST_RAZORPAY_KEY_SECRET=
+RAZORTRUST_RAZORPAY_WEBHOOK_SECRET=
+RAZORTRUST_RAZORPAY_BASE_URL=https://api.razorpay.com/v1
 ```
 
-The freeze package records:
-
-- critical source SHA256 hashes;
-- benchmark status and metrics;
-- dataset hashes;
-- live safety mode;
-- Git state;
-- evaluation-integrity assertions.
-
-Final judge-facing docs:
-
-- [`ARCHITECTURE.md`](docs/buildathon-final/ARCHITECTURE.md)
-- [`RESULTS.md`](docs/buildathon-final/RESULTS.md)
-- [`DEMO-SCRIPT.md`](docs/buildathon-final/DEMO-SCRIPT.md)
-- [`SUBMISSION-CHECKLIST.md`](docs/buildathon-final/SUBMISSION-CHECKLIST.md)
-- [`SHA256SUMS.txt`](docs/buildathon-final/SHA256SUMS.txt)
-
----
-
-## Research history and claim separation
-
-RazorTrust contains earlier synthetic and staged research used to validate mechanics, leakage controls, model-release gates and failure behavior.
-
-Those historical experiments are not presented as the public real-world fraud benchmark and are not substituted for the verified `@1.3` result.
-
-Important principle:
-
-> A failed promotion gate is a valid result.
-
-Research candidates that failed safety or recall requirements remain non-promotable.
-
-For technical history see:
-
-- [`docs/completion-report.md`](docs/completion-report.md)
-- [`docs/final-ml-research-cycle.md`](docs/final-ml-research-cycle.md)
-- [`docs/red-team-scenarios.md`](docs/red-team-scenarios.md)
-- [`docs/regulatory-control-map.md`](docs/regulatory-control-map.md)
-- [`docs/policy-signing.md`](docs/policy-signing.md)
-
----
+Never commit credentials or `.env` files. Webhook verification proves event authenticity; a verified webhook is still not authority to release funds.
 
 ## Verification
 
-The validated repository passed the complete Python test suite after the final benchmark integrity and schema fixes.
-
-Typical local verification:
+Create an environment and install the complete development extras:
 
 ```powershell
-.venv\Scripts\ruff check .
-.venv\Scripts\ruff format --check .
-.venv\Scripts\mypy src scripts
-.venv\Scripts\pytest tests
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[test,ml,novelty,graph,drift,uncertainty]"
 ```
 
-The Docker-based full-test environment covers optional ML/research dependencies.
+Run the same core quality gates used by CI:
 
-Tests cover:
+```powershell
+python -m ruff check src scripts tests
+python -m ruff format --check src scripts tests
+python -m mypy src/razortrust
+python -m pytest tests
+opa test policies -v
+```
 
-- temporal leakage;
-- feature contracts;
-- benchmark schema strictness;
-- post-recommendation truth access;
-- policy parity;
-- authorization scoping;
-- idempotency;
-- evidence-round enforcement;
-- release signatures;
-- database transactions;
-- audit tampering;
-- model evaluation;
-- known failure modes.
+The suite covers temporal leakage, feature contracts, benchmark integrity, post-recommendation truth access, policy parity, authorization scope, evidence rounds, idempotency, database transactions, audit tampering, release signatures, and known failure modes.
 
----
+## Security and governance boundaries
+
+- No AI output can directly move or release money.
+- OPA failures and dependency failures are fail-closed.
+- Public benchmark recommendations are isolated from operational policy input.
+- Model artifacts require verified manifests and signatures before loading.
+- Artifact signatures prove integrity and provenance, not model quality.
+- Ground truth is accessed after recommendation during evaluation workflows.
+- PostgreSQL is authoritative when database mode is enabled.
+- Raw provider/customer secrets must not enter logs or telemetry.
+- Duplicate webhooks and operator actions are handled idempotently.
+- Production rollout requires managed key custody, signed policy distribution, immutable external audit checkpoints, processor ground truth, staffed review operations, shadow/canary validation, and rollback procedures.
 
 ## Repository map
 
 ```text
-src/razortrust/            API, workflow, policy adapters, persistence, audit and frontend
-src/razortrust/ml/         training, calibration, evaluation, release and research gates
-policies/                  Rego policies
-alembic/                   PostgreSQL migrations
-scripts/                   training, evaluation, demo and operations tooling
-tests/                     unit, contract, regression and database tests
-docs/                      technical evidence and controls
-docs/buildathon-final/     judge-facing architecture, results, demo and checklist
-artifacts/research/        research and frozen-core evidence
-artifacts/submission/      final submission evidence bundles
-experimental/              archived research outside the live application path
+src/razortrust/        API, workflows, persistence, policy, audit, ML and operator UI
+src/razortrust/ml/     features, training, calibration, evaluation and release gates
+policies/              Rego policy controls
+alembic/               PostgreSQL migrations
+scripts/               training, evaluation and operational tooling
+tests/                 unit, contract, regression and database tests
+docs/                  architecture, controls, research and operational guidance
+artifacts/research/    frozen research artifacts and validation evidence
+artifacts/submission/  reproducible evidence bundles
+experimental/          archived work outside the active serving path
 ```
 
----
+Useful technical references:
+
+- [Completion report](docs/completion-report.md)
+- [ML research cycle](docs/final-ml-research-cycle.md)
+- [Red-team scenarios](docs/red-team-scenarios.md)
+- [Regulatory control map](docs/regulatory-control-map.md)
+- [Policy signing](docs/policy-signing.md)
 
 ## Claim boundaries
 
-RazorTrust does not claim:
+RazorTrust does not claim perfect fraud detection, zero false negatives, or autonomous financial authority. A failed payment is not automatically fraud, public benchmark data is not Razorpay settlement truth, and research artifacts are not promoted because their metrics look promising.
 
-- every fraud can be detected;
-- zero false negatives;
-- a payment failure is automatically fraud;
-- Razorpay settlement ground truth from the public ULB dataset;
-- the public benchmark is a production settlement model;
-- autonomous authority to move or release money.
-
-A provider payment failure remains a payment failure unless authoritative evidence establishes something more.
-
-The public benchmark demonstrates measurable fraud-classification behavior on a public anonymized dataset. The operational system demonstrates how that evidence is bounded by provenance, uncertainty, policy, audit and human authority.
-
----
-
-## Security boundaries
-
-- Never commit `.env` files, private keys, credentials or secret material.
-- Never expose provider/customer secrets in telemetry.
-- OPA enforces operational constraints; it does not calculate model risk.
-- Ed25519 release signatures prove artifact integrity/provenance, not model quality.
-- Webhook signatures must be computed over the exact raw request body.
-- Duplicate Razorpay webhook deliveries must be handled idempotently.
-- PostgreSQL is authoritative when database mode is enabled.
-- Public benchmark recommendations never authorize settlement release.
-- AI recommendations never resolve a hold without named human authorization.
-- Production rollout still requires managed key custody, signed policy distribution, external immutable audit checkpoints, real processor ground truth, human-review operations, shadow/canary validation and rollback procedures.
-
----
+The project optimizes for low false releases, low unnecessary merchant friction, unknown-risk detection, calibrated probabilities, interpretable signals, strict leakage prevention, reproducible governance, and safe failure behavior.
 
 ## License
 
