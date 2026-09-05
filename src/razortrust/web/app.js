@@ -2,6 +2,7 @@ const state = {
   holds: [],
   payments: [],
   histories: [],
+  importingHistory: false,
   benchmarkCases: [],
   benchmarkRunning: false,
   running: false,
@@ -14,6 +15,16 @@ const elements = {
   process: document.querySelector("#process-case"),
   refresh: document.querySelector("#refresh-cases"),
   sourceNote: document.querySelector("#source-note"),
+  caseDetails: document.querySelector("#case-details"),
+  historyDatasetName: document.querySelector("#history-dataset-name"),
+  historyAccountId: document.querySelector("#history-account-id"),
+  historySourceDescription: document.querySelector("#history-source-description"),
+  historyJsonFile: document.querySelector("#history-json-file"),
+  historyJson: document.querySelector("#history-json"),
+  historyAttestation: document.querySelector("#history-real-attestation"),
+  validateHistory: document.querySelector("#validate-history-json"),
+  importHistory: document.querySelector("#import-history-json"),
+  historyImportNote: document.querySelector("#history-import-note"),
   stageGrid: document.querySelector("#stage-grid"),
   runStatus: document.querySelector("#run-status"),
   summary: document.querySelector("#execution-summary"),
@@ -21,12 +32,23 @@ const elements = {
   summarySource: document.querySelector("#summary-source"),
   summaryRecommendation: document.querySelector("#summary-recommendation"),
   summaryEnforcement: document.querySelector("#summary-enforcement"),
+  conclusion: document.querySelector("#conclusion-panel"),
+  conclusionHeadline: document.querySelector("#conclusion-headline"),
+  conclusionModel: document.querySelector("#conclusion-model"),
+  conclusionStory: document.querySelector("#conclusion-story"),
+  conclusionSignals: document.querySelector("#conclusion-signals"),
+  conclusionUnresolved: document.querySelector("#conclusion-unresolved"),
+  conclusionNextStep: document.querySelector("#conclusion-next-step"),
   toast: document.querySelector("#toast"),
   benchmarkSelect: document.querySelector("#benchmark-case-select"),
   benchmarkFilter: document.querySelector("#benchmark-label-filter"),
   prepareBenchmark: document.querySelector("#prepare-benchmark"),
   runBenchmark: document.querySelector("#run-benchmark"),
   benchmarkNote: document.querySelector("#benchmark-note"),
+  disputeTrainingNote: document.querySelector("#dispute-training-note"),
+  serviceHealth: document.querySelector("#service-health"),
+  modelRuntime: document.querySelector("#model-runtime"),
+  decisionMode: document.querySelector("#decision-mode"),
 };
 
 elements.token.value = sessionStorage.getItem("razortrust-token") || "";
@@ -118,6 +140,117 @@ function formatScalar(value) {
   if (typeof value === "boolean") return value ? "true" : "false";
   if (value === null || value === undefined) return "-";
   return String(value);
+}
+
+async function loadSystemStatus() {
+  try {
+    const status = await api("/health/ready");
+    elements.serviceHealth.textContent = `API ${String(status.status).toUpperCase()}`;
+    elements.serviceHealth.className = "safety-pill safe";
+    elements.modelRuntime.textContent =
+      status.analysis_runtime_status === "READY"
+        ? `ANALYSIS ${String(status.analysis_model_version).toUpperCase()} READY`
+        : `ANALYSIS ${String(status.analysis_runtime_status || "UNKNOWN").toUpperCase()}`;
+    elements.decisionMode.textContent = String(status.decision_mode).toUpperCase();
+    elements.decisionMode.className =
+      status.decision_mode === "human_only" ? "safety-pill safe" : "safety-pill test";
+  } catch (error) {
+    elements.serviceHealth.textContent = "API UNAVAILABLE";
+    elements.serviceHealth.className = "safety-pill danger";
+    elements.modelRuntime.textContent = "MODEL CONNECTION UNKNOWN";
+  }
+}
+
+const historyRequiredFields = [
+  "transaction_id",
+  "order_id",
+  "event_at",
+  "observed_at",
+  "amount_subunits",
+  "currency",
+  "status",
+  "method",
+  "device_pseudonym",
+  "customer_geo",
+  "refund_amount_subunits",
+  "refund_event_at",
+  "refund_observed_at",
+  "dispute_phase",
+  "dispute_status",
+  "dispute_event_at",
+  "dispute_observed_at",
+];
+const historyFields = [...historyRequiredFields, "fraud_label"];
+
+function parseHistoryJson() {
+  let payload;
+  try {
+    payload = JSON.parse(elements.historyJson.value);
+  } catch (error) {
+    throw new Error(`Invalid JSON: ${error.message}`);
+  }
+  const rows = Array.isArray(payload) ? payload : payload?.transactions;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error('Supply a non-empty JSON array or an object with a "transactions" array.');
+  }
+  if (rows.length > 10000) throw new Error("JSON exceeds the 10,000 row import limit.");
+  rows.forEach((row, index) => {
+    if (!row || Array.isArray(row) || typeof row !== "object") {
+      throw new Error(`Transaction ${index + 1} must be a JSON object.`);
+    }
+    const unknown = Object.keys(row).filter((field) => !historyFields.includes(field));
+    if (unknown.length) {
+      throw new Error(`Transaction ${index + 1} has unknown fields: ${unknown.join(", ")}`);
+    }
+    const missing = historyRequiredFields.filter((field) => !(field in row));
+    if (missing.length) {
+      throw new Error(`Transaction ${index + 1} is missing: ${missing.join(", ")}`);
+    }
+  });
+  return rows;
+}
+
+function csvCell(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") throw new Error("Nested JSON values are not allowed.");
+  const textValue = String(value);
+  return /[",\r\n]/.test(textValue) ? `"${textValue.replaceAll('"', '""')}"` : textValue;
+}
+
+function historyJsonAsCsv() {
+  const rows = parseHistoryJson();
+  const lines = [historyFields.join(",")];
+  rows.forEach((row) => lines.push(historyFields.map((field) => csvCell(row[field])).join(",")));
+  return { rows, csv: `${lines.join("\n")}\n` };
+}
+
+function validateHistoryJson() {
+  try {
+    const { rows } = historyJsonAsCsv();
+    const labelled = rows.filter((row) => row.fraud_label === 0 || row.fraud_label === 1).length;
+    elements.historyImportNote.textContent =
+      `VALID JSON: ${rows.length} transaction(s), ${labelled} labelled row(s). ` +
+      "Backend contract validation still runs during import.";
+    return true;
+  } catch (error) {
+    elements.historyImportNote.textContent = error.message;
+    notify(error.message, true);
+    return false;
+  }
+}
+
+function renderCaseDetails(item, source) {
+  if (!item) {
+    elements.caseDetails.innerHTML = "<span>No stored fields are available.</span>";
+    return;
+  }
+  const fields = { source, ...item };
+  elements.caseDetails.innerHTML = Object.entries(fields)
+    .map(
+      ([key, value]) =>
+        `<div><dt>${escapeHtml(labelize(key))}</dt><dd>${escapeHtml(formatScalar(value))}</dd></div>`,
+    )
+    .join("");
 }
 
 function renderObject(value, depth = 0) {
@@ -242,6 +375,45 @@ function renderStages(stages) {
     .join("");
 }
 
+function renderConclusion(conclusion) {
+  if (!conclusion) {
+    elements.conclusion.classList.add("hidden");
+    return;
+  }
+  const renderList = (target, values, emptyText) => {
+    const items = Array.isArray(values) && values.length ? values : [emptyText];
+    target.innerHTML = items
+      .map((value) => `<li>${escapeHtml(value)}</li>`)
+      .join("");
+  };
+  elements.conclusionHeadline.textContent = conclusion.headline;
+  elements.conclusionModel.textContent = [
+    conclusion.source_statement,
+    conclusion.data_quality_statement,
+    conclusion.model_statement,
+    conclusion.dispute_statement,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  renderList(
+    elements.conclusionStory,
+    conclusion.journey,
+    "No execution journey returned.",
+  );
+  renderList(
+    elements.conclusionSignals,
+    conclusion.strongest_signals,
+    "No explainable signal returned.",
+  );
+  renderList(
+    elements.conclusionUnresolved,
+    conclusion.unresolved_questions,
+    "No unresolved technical blocker reported.",
+  );
+  elements.conclusionNextStep.textContent = conclusion.next_step;
+  elements.conclusion.classList.remove("hidden");
+}
+
 async function loadCases() {
   elements.select.innerHTML = '<option value="">Loading real cases...</option>';
   const [paymentsResult, historiesResult, holdsResult] = await Promise.allSettled([
@@ -253,21 +425,31 @@ async function loadCases() {
   state.histories = historiesResult.status === "fulfilled" ? historiesResult.value.items || [] : [];
   state.holds = holdsResult.status === "fulfilled" ? holdsResult.value || [] : [];
   const paymentOptions = state.payments.map((p) =>
-    `<option value="pay:${escapeHtml(p.payment_id)}">Razorpay \u00B7 ${escapeHtml(p.status)} \u00B7 ${escapeHtml(p.payment_id)}</option>`
+    `<option value="pay:${escapeHtml(p.payment_id)}">Razorpay | ${escapeHtml(p.status)} | ${escapeHtml(p.payment_id)} | ${escapeHtml(p.account_id)} | ${escapeHtml(p.amount)} ${escapeHtml(p.currency)} | ${escapeHtml(p.method || "unknown method")}</option>`
   ).join("");
   const historyOptions = state.histories.map((item) =>
-    `<option value="hist:${escapeHtml(item.dataset_id)}:${escapeHtml(item.transaction_id)}">Imported \u00B7 ${escapeHtml(item.dataset_name)} \u00B7 ${escapeHtml(item.transaction_id)} \u00B7 ${escapeHtml(item.status)}</option>`
+    `<option value="hist:${escapeHtml(item.dataset_id)}:${escapeHtml(item.transaction_id)}">Imported | ${escapeHtml(item.dataset_name)} | ${escapeHtml(item.transaction_id)} | ${escapeHtml(item.account_id)} | ${escapeHtml(item.amount_subunits)} ${escapeHtml(item.currency)} | ${escapeHtml(item.status)}</option>`
   ).join("");
   const holdOptions = state.holds.map((hold) =>
-    `<option value="hold:${escapeHtml(hold.hold_id)}">Stored hold \u00B7 ${escapeHtml(hold.merchant_id)} \u00B7 ${escapeHtml(hold.hold_id.slice(0, 8))}</option>`
+    `<option value="hold:${escapeHtml(hold.hold_id)}">Stored hold | ${escapeHtml(hold.merchant_id)} | ${escapeHtml(hold.source_event_id)} | ${escapeHtml(hold.state)} | ${escapeHtml(hold.hold_id)}</option>`
   ).join("");
   const groups = [
     paymentOptions ? `<optgroup label="Authoritative Razorpay TEST payments">${paymentOptions}</optgroup>` : "",
     historyOptions ? `<optgroup label="Source-provenanced real history">${historyOptions}</optgroup>` : "",
     holdOptions ? `<optgroup label="Existing RazorTrust holds">${holdOptions}</optgroup>` : "",
   ].join("");
-  elements.select.innerHTML = groups ? `<option value="">Select a real case</option>${groups}` : '<option value="">No real cases found</option>';
-  elements.sourceNote.textContent = `${state.payments.length} Razorpay payment(s), ${state.histories.length} imported transaction(s), ${state.holds.length} stored hold(s).`;
+  const failedSources = [paymentsResult, historiesResult, holdsResult].filter(
+    (result) => result.status === "rejected",
+  ).length;
+  elements.select.innerHTML = groups
+    ? `<option value="">Select a real case</option>${groups}`
+    : failedSources
+      ? '<option value="">Authoritative stores unavailable</option>'
+      : '<option value="">No real cases found - import JSON below</option>';
+  elements.sourceNote.textContent =
+    `${state.payments.length} Razorpay payment(s), ${state.histories.length} imported ` +
+    `transaction(s), ${state.holds.length} stored hold(s). ` +
+    (failedSources ? `${failedSources} data connection(s) failed.` : "All case stores responded.");
 }
 
 elements.select.addEventListener("change", () => {
@@ -281,12 +463,19 @@ elements.select.addEventListener("change", () => {
     elements.sourceNote.textContent = payment
       ? `Selected authoritative ${payment.status} payment ${payment.payment_id}.`
       : "Authoritative Razorpay payment selected.";
+    renderCaseDetails(payment, "RAZORPAY AUTHORITATIVE STORE");
     return;
   }
 
   if (selected.startsWith("hist:")) {
     elements.holdId.value = selected;
+    const parts = selected.split(":");
+    const transactionId = parts.slice(2).join(":");
+    const history = state.histories.find(
+      (item) => item.dataset_id === parts[1] && item.transaction_id === transactionId,
+    );
     elements.sourceNote.textContent = "Selected source-provenanced imported history transaction.";
+    renderCaseDetails(history, "OPERATOR-SUPPLIED REAL HISTORY");
     return;
   }
 
@@ -297,6 +486,7 @@ elements.select.addEventListener("change", () => {
     elements.sourceNote.textContent = hold
       ? `Selected stored hold for ${hold.merchant_id}.`
       : "Stored RazorTrust case selected.";
+    renderCaseDetails(hold, "RAZORTRUST HOLD STORE");
   }
 });
 
@@ -331,6 +521,7 @@ async function processCase() {
       result = await api(`/v1/holds/${encodeURIComponent(holdId)}/layer-execution`, { method: "POST" });
     }
     renderStages(result.stages || []);
+    renderConclusion(result.conclusion);
     elements.summary.classList.remove("hidden");
     elements.summaryTrace.textContent = result.trace_id || "-";
     elements.summarySource.textContent = result.source_mode || "-";
@@ -358,6 +549,77 @@ elements.holdId.addEventListener("keydown", (event) => {
   }
 });
 
+elements.historyJsonFile.addEventListener("change", async () => {
+  const file = elements.historyJsonFile.files?.[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    notify("JSON file exceeds the 10 MiB import limit.", true);
+    elements.historyJsonFile.value = "";
+    return;
+  }
+  elements.historyJson.value = await file.text();
+  elements.historyImportNote.textContent = `Loaded ${file.name} (${file.size} bytes).`;
+  validateHistoryJson();
+});
+
+async function importHistoryJson() {
+  if (state.importingHistory || !validateHistoryJson()) return;
+  const datasetName = elements.historyDatasetName.value.trim();
+  const accountId = elements.historyAccountId.value.trim();
+  const sourceDescription = elements.historySourceDescription.value.trim();
+  if (!datasetName || !accountId || !sourceDescription) {
+    notify("Dataset name, account ID, and source description are required.", true);
+    return;
+  }
+  if (!elements.historyAttestation.checked) {
+    notify("Real-data attestation is required; generated demo data is rejected.", true);
+    return;
+  }
+
+  state.importingHistory = true;
+  elements.importHistory.disabled = true;
+  elements.validateHistory.disabled = true;
+  setRunStatus("IMPORTING HISTORY", "running");
+  try {
+    const { csv } = historyJsonAsCsv();
+    const query = new URLSearchParams({
+      dataset_name: datasetName,
+      account_id: accountId,
+      source_kind: "OPERATOR_SUPPLIED_REAL_HISTORY",
+      source_description: sourceDescription,
+      user_attested_real_data: "true",
+    });
+    const manifest = await api(`/v1/operator-history/import?${query}`, {
+      method: "POST",
+      headers: { "Content-Type": "text/csv; charset=utf-8" },
+      body: csv,
+    });
+    elements.historyImportNote.textContent =
+      `IMPORTED: ${manifest.row_count} row(s), dataset ${manifest.dataset_id}, ` +
+      `SHA-256 ${manifest.original_file_sha256}. Production action eligible: NO.`;
+    await loadCases();
+    await loadDisputeTrainingStatus();
+    const imported = state.histories.find((item) => item.dataset_id === manifest.dataset_id);
+    if (imported) {
+      elements.select.value = `hist:${imported.dataset_id}:${imported.transaction_id}`;
+      elements.select.dispatchEvent(new Event("change"));
+    }
+    setRunStatus("HISTORY READY", "pass");
+    notify("Real history imported and added to the case list.");
+  } catch (error) {
+    setRunStatus("IMPORT FAILED", "danger");
+    elements.historyImportNote.textContent = `IMPORT BLOCKED: ${error.message}`;
+    notify(error.message, true);
+  } finally {
+    state.importingHistory = false;
+    elements.importHistory.disabled = false;
+    elements.validateHistory.disabled = false;
+  }
+}
+
+elements.validateHistory.addEventListener("click", validateHistoryJson);
+elements.importHistory.addEventListener("click", importHistoryJson);
+
 
 async function loadBenchmarkStatus() {
   try {
@@ -380,6 +642,40 @@ async function loadBenchmarkStatus() {
     elements.benchmarkNote.textContent =
       `Benchmark status unavailable: ${error.message}`;
   }
+}
+
+async function loadDisputeTrainingStatus() {
+  const [accountsResult, datasetsResult] = await Promise.allSettled([
+    api("/v1/integrations/razorpay/accounts"),
+    api("/v1/operator-history/datasets"),
+  ]);
+  const accounts =
+    accountsResult.status === "fulfilled" ? accountsResult.value.accounts || [] : [];
+  const datasets =
+    datasetsResult.status === "fulfilled" ? datasetsResult.value.items || [] : [];
+  const disputeAccounts = accounts.filter((item) => item.last_dispute_at).length;
+  const labelledRows = datasets.reduce(
+    (total, item) => total + Number(item.fraud_label_count || 0),
+    0,
+  );
+  if (accountsResult.status !== "fulfilled" || datasetsResult.status !== "fulfilled") {
+    elements.disputeTrainingNote.textContent =
+      "DISPUTE MODEL STATUS INCOMPLETE: one or more authoritative data stores are " +
+      "unavailable, so training readiness cannot be claimed.";
+    return;
+  }
+  if (disputeAccounts === 0 && labelledRows === 0) {
+    elements.disputeTrainingNote.textContent =
+      "DISPUTE PIPELINE READY - AWAITING MATURE LABELS: both authoritative stores are " +
+      "online, but they currently contain 0 provider accounts with dispute history and " +
+      "0 labelled imported rows. Training remains safely blocked; " +
+      "ULB fraud labels are not being misrepresented as disputes.";
+    return;
+  }
+  elements.disputeTrainingNote.textContent =
+    `DISPUTE DATA DISCOVERED: ${disputeAccounts} provider account(s) with dispute ` +
+    `history and ${labelledRows} labelled imported row(s). Governance validation and ` +
+    "a leakage-safe training split are still required before model activation.";
 }
 
 async function loadBenchmarkCases() {
@@ -460,6 +756,7 @@ async function runBenchmarkCase() {
       { method: "POST" },
     );
     renderStages(result.stages || []);
+    renderConclusion(result.conclusion);
     elements.summary.classList.remove("hidden");
     elements.summaryTrace.textContent = result.trace_id || "-";
     elements.summarySource.textContent = result.source_mode || "-";
@@ -486,4 +783,6 @@ elements.runBenchmark.addEventListener("click", runBenchmarkCase);
 elements.benchmarkFilter.addEventListener("change", loadBenchmarkCases);
 
 loadCases();
+loadSystemStatus();
 loadBenchmarkStatus();
+loadDisputeTrainingStatus();

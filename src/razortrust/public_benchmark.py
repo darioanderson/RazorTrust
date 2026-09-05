@@ -12,6 +12,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .conclusion import DecisionConclusion, build_decision_conclusion
+
 DATASET_ID = 1597
 DATASET_NAME = "ULB_WORLDLINE_CREDITCARD_2013"
 SOURCE_KIND = "PUBLIC_REAL_WORLD_ANONYMIZED"
@@ -121,6 +123,7 @@ class BenchmarkExecution(StrictModel):
     human_authorization_required: bool = True
     automatic_release_enabled: bool = False
     production_action_eligible: bool = False
+    conclusion: DecisionConclusion
 
 
 @dataclass
@@ -863,11 +866,24 @@ class PublicBenchmarkService:
             ),
         ]
 
+        conclusion = build_decision_conclusion(
+            stages=stages,
+            recommendation=recommendation,
+            source_mode=SOURCE_KIND,
+        )
+        stages.append(
+            BenchmarkStage(
+                layer="CONCLUSION_STORY",
+                status="RESULT",
+                output=conclusion.model_dump(mode="json"),
+            )
+        )
         return BenchmarkExecution(
             trace_id=trace_id,
             row_id=row_id,
             stages=stages,
             benchmark_recommendation=recommendation,
+            conclusion=conclusion,
         )
 
     def _source_file(self, *, force: bool) -> tuple[Path, str, int]:

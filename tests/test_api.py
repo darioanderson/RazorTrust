@@ -204,6 +204,7 @@ async def test_human_only_mode_is_ready_without_model_and_routes_to_human_review
         assert ready.status_code == 200
         assert ready.json()["decision_mode"] == "human_only"
         assert ready.json()["risk_runtime"] == "human-only@1"
+        assert ready.json()["analysis_runtime_status"] == "NOT_CONFIGURED"
 
         created = await client.post("/v1/holds", json=request)
         assert created.status_code == 201

@@ -26,8 +26,9 @@
         </div>
 
         <div class="safety-stack" aria-label="Enforcement state">
-          <span class="safety-pill test">TEST ENVIRONMENT</span>
-          <span class="safety-pill safe">HUMAN_ONLY</span>
+          <span id="service-health" class="safety-pill test">CONNECTING</span>
+          <span id="model-runtime" class="safety-pill test">MODEL STATUS PENDING</span>
+          <span id="decision-mode" class="safety-pill safe">HUMAN_ONLY</span>
           <span class="safety-pill safe">AUTO RELEASE OFF</span>
         </div>
       </header>
@@ -82,6 +83,56 @@
         <div id="source-note" class="source-note" aria-live="polite">
           Waiting for a real payment or case. Synthetic fixtures are not used on this page.
         </div>
+
+        <div id="case-details" class="case-details" aria-live="polite">
+          <span>Select a case to inspect its authoritative stored fields.</span>
+        </div>
+      </section>
+
+      <section class="input-panel import-panel" aria-labelledby="json-import-title">
+        <div>
+          <p class="eyebrow">REAL HISTORY IMPORT</p>
+          <h2 id="json-import-title">Paste or upload transaction-history JSON</h2>
+          <p class="muted">
+            JSON is converted only to the backend's strict real-history contract. The server
+            validates timestamps, provenance, labels, refund/dispute timing, and leakage safety.
+            It is never treated as provider-verified data.
+          </p>
+        </div>
+
+        <div class="import-grid">
+          <label>
+            <span>Dataset name</span>
+            <input id="history-dataset-name" type="text" maxlength="160" placeholder="September merchant export" />
+          </label>
+          <label>
+            <span>Merchant / account ID</span>
+            <input id="history-account-id" type="text" maxlength="128" placeholder="acc_... or merchant identifier" />
+          </label>
+          <label>
+            <span>Source description</span>
+            <input id="history-source-description" type="text" maxlength="500" placeholder="Where and how this real history was exported" />
+          </label>
+          <label class="file-control">
+            <span>JSON file (optional)</span>
+            <input id="history-json-file" type="file" accept="application/json,.json" />
+          </label>
+          <label class="json-control">
+            <span>Transactions JSON - array or {"transactions": [...]}</span>
+            <textarea id="history-json" rows="12" spellcheck="false" placeholder='[{"transaction_id":"...","order_id":"...","event_at":"2026-08-01T10:00:00Z","observed_at":"2026-08-01T10:00:01Z","amount_subunits":1000,"currency":"INR","status":"captured","method":"card","device_pseudonym":"minimum-16-chars","customer_geo":"IN-DL","refund_amount_subunits":0,"refund_event_at":"","refund_observed_at":"","dispute_phase":"","dispute_status":"","dispute_event_at":"","dispute_observed_at":"","fraud_label":null}]'></textarea>
+          </label>
+          <label class="attestation-control">
+            <input id="history-real-attestation" type="checkbox" />
+            <span>I attest this is real, lawfully supplied history, not generated demo data.</span>
+          </label>
+          <div class="input-actions">
+            <button id="validate-history-json" class="button secondary" type="button">Validate JSON</button>
+            <button id="import-history-json" class="button primary" type="button">Import and list cases</button>
+          </div>
+          <div id="history-import-note" class="source-note" aria-live="polite">
+            No JSON loaded. Required fields are shown in the placeholder.
+          </div>
+        </div>
       </section>
 
 
@@ -126,6 +177,9 @@
         <div id="benchmark-note" class="source-note" aria-live="polite">
           Not prepared. This path never modifies xgb-if-settlement@2.
         </div>
+        <div id="dispute-training-note" class="source-note dispute-training-note" aria-live="polite">
+          Checking whether mature, source-provenanced dispute outcomes are available...
+        </div>
       </section>
 
       <section id="execution-summary" class="summary-grid hidden" aria-live="polite">
@@ -145,6 +199,35 @@
           <span>Enforcement</span>
           <strong id="summary-enforcement">HUMAN_ONLY</strong>
         </article>
+      </section>
+
+      <section id="conclusion-panel" class="conclusion-panel hidden" aria-live="polite">
+        <div class="conclusion-heading">
+          <div>
+            <p class="eyebrow">CONCLUSION LAYER</p>
+            <h2 id="conclusion-headline">Human decision still required</h2>
+          </div>
+          <span class="safety-pill safe">NO AUTOMATIC RELEASE</span>
+        </div>
+        <p id="conclusion-model" class="conclusion-lede"></p>
+        <div class="conclusion-columns">
+          <article>
+            <h3>What happened</h3>
+            <ul id="conclusion-story"></ul>
+          </article>
+          <article>
+            <h3>Strongest signals</h3>
+            <ul id="conclusion-signals"></ul>
+          </article>
+          <article>
+            <h3>Unresolved / evidence</h3>
+            <ul id="conclusion-unresolved"></ul>
+          </article>
+        </div>
+        <div class="conclusion-next">
+          <span>Required next step</span>
+          <strong id="conclusion-next-step"></strong>
+        </div>
       </section>
 
       <section class="workflow-panel" aria-labelledby="workflow-title">

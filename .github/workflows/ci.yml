@@ -19,7 +19,9 @@ jobs:
       - run: ruff check src scripts tests
       - run: ruff format --check src scripts tests
       - run: mypy src/razortrust
-      - run: pytest tests
+      # `python -m` keeps the repository root on sys.path so the tested
+      # `scripts` namespace resolves consistently on Linux and Windows.
+      - run: python -m pytest tests
       - uses: open-policy-agent/setup-opa@v2
         with: {version: "1.19.1"}
       - run: opa test policies -v
@@ -43,6 +45,7 @@ jobs:
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: razortrust:${{ github.sha }}
+          scanners: vuln
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH

@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from .audit import AuditLedger
+from .conclusion import DecisionConclusion, build_decision_conclusion
 from .domain import FeatureVector, HoldCase, HoldDecision, PolicyCheck, StrictModel
 from .ground_truth import (
     ProviderGroundTruthStore,
@@ -34,6 +35,7 @@ class LayerExecutionResponse(StrictModel):
     human_authorization_required: bool = True
     automatic_release_enabled: bool = False
     production_action_eligible: bool = False
+    conclusion: DecisionConclusion
 
 
 class LayerExecutionContext(StrictModel):
@@ -520,6 +522,18 @@ class LayerExecutionService:
         recommendation: HoldDecision | None,
         context: LayerExecutionContext,
     ) -> LayerExecutionResponse:
+        conclusion = build_decision_conclusion(
+            stages=stages,
+            recommendation=(recommendation or HoldDecision.ESCALATE).value,
+            source_mode=context.source_mode,
+        )
+        stages.append(
+            LayerStage(
+                layer="CONCLUSION_STORY",
+                status="RESULT",
+                output=conclusion.model_dump(mode="json"),
+            )
+        )
         return LayerExecutionResponse(
             trace_id=trace_id,
             hold_id=hold.hold_id,
@@ -529,4 +543,5 @@ class LayerExecutionService:
             stages=stages,
             ai_recommendation=recommendation,
             enforcement_mode=self.enforcement_mode,
+            conclusion=conclusion,
         )

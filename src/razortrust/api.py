@@ -428,6 +428,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "status": "ready",
             "decision_mode": config.decision_mode,
             "risk_runtime": risk_model.version,
+            "analysis_runtime_status": shadow_analysis_runtime.status,
+            "analysis_model_version": shadow_analysis_runtime.model_version,
             "audit_records": records,
             "policy_mode": config.policy_mode,
             "model_version": risk_model.version,

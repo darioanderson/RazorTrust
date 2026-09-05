@@ -143,6 +143,9 @@ async def test_data_quality_blocks_model_and_routes_to_human(tmp_path):
     assert by_layer["DATA_QUALITY_FIREWALL"].status == "BLOCKED"
     assert by_layer["CORE_ML"].status == "BLOCKED"
     assert by_layer["HUMAN_ONLY"].status == "WAITING_FOR_HUMAN"
+    assert by_layer["CONCLUSION_STORY"].status == "RESULT"
+    assert result.conclusion.recommendation == "EVIDENCE_NEEDED"
+    assert result.conclusion.automatic_release_enabled is False
 
 
 @pytest.mark.asyncio
@@ -174,6 +177,9 @@ async def test_real_feature_vector_flows_through_model_policy_and_human_gate(tmp
     assert by_layer["OPA_GUARDRAILS"].status == "RESULT"
     assert by_layer["HUMAN_ONLY"].status == "WAITING_FOR_HUMAN"
     assert by_layer["HASH_CHAINED_AUDIT"].status == "RECORDED"
+    assert by_layer["CONCLUSION_STORY"].status == "RESULT"
+    assert result.conclusion.strongest_signals == ["failed_auth_ratio: toward_ESCALATE"]
+    assert "human risk analyst" in result.conclusion.next_step
     assert ledger.verify()[0] is True
 
 

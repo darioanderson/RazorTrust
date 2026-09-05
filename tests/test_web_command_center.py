@@ -24,6 +24,15 @@ def test_live_workflow_contains_governed_primary_sections() -> None:
     assert "PUBLIC REAL-WORLD BENCHMARK" in html
     assert 'id="benchmark-case-select"' in html
     assert 'id="stage-grid"' in html
+    assert 'id="conclusion-panel"' in html
+    assert "CONCLUSION LAYER" in html
+    assert 'id="dispute-training-note"' in html
+    assert 'id="history-json"' in html
+    assert 'id="history-json-file"' in html
+    assert 'id="history-real-attestation"' in html
+    assert 'id="case-details"' in html
+    assert 'id="service-health"' in html
+    assert 'id="model-runtime"' in html
 
     assert "HUMAN_ONLY" in html
     assert "AUTO RELEASE OFF" in html
@@ -62,6 +71,15 @@ def test_frontend_preserves_human_gate_and_native_keyboard_paths() -> None:
 
     assert "benchmark_recommendation" in script
     assert "Preparing verified ULB data" in script
+    assert "renderConclusion(result.conclusion)" in script
+    assert "DISPUTE PIPELINE READY - AWAITING MATURE LABELS" in script
+    assert "ULB fraud labels are" in script
+    assert "not being misrepresented as disputes" in script
+    assert "/v1/operator-history/import" in script
+    assert "user_attested_real_data" in script
+    assert "historyJsonAsCsv" in script
+    assert "All case stores responded" in script
+    assert 'api("/health/ready")' in script
 
 
 def test_css_has_visible_focus_and_minimum_control_targets() -> None:

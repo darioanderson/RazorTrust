@@ -3,6 +3,7 @@
   --bg: #08090b;
   --surface: #111318;
   --surface-2: #16191f;
+  --panel: #111318;
   --line: #272c35;
   --text: #f4f6f8;
   --muted: #98a2b3;
@@ -34,7 +35,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -177,13 +179,35 @@ a:focus-visible {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--line);
   background: #0c0e12;
   color: var(--text);
   border-radius: 10px;
   padding: 0 12px;
+}
+
+.safety-pill.danger {
+  color: #ffb2b2;
+  background: rgba(255, 107, 107, 0.08);
+  border-color: rgba(255, 107, 107, 0.38);
+}
+
+textarea {
+  min-height: 220px;
+  padding: 12px;
+  resize: vertical;
+  color: #dce4f3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+textarea:focus-visible {
+  outline: 3px solid rgba(91, 140, 255, 0.75);
+  outline-offset: 2px;
 }
 
 .input-actions {
@@ -226,6 +250,84 @@ select {
   font-size: 0.9rem;
 }
 
+.case-details {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.case-details div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(91, 140, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(91, 140, 255, 0.035);
+}
+
+.case-details span,
+.case-details dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.case-details dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+}
+
+.import-panel {
+  border-color: rgba(165, 140, 255, 0.34);
+  background:
+    linear-gradient(145deg, rgba(165, 140, 255, 0.08), transparent 55%),
+    var(--panel);
+}
+
+.import-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.import-grid label {
+  display: grid;
+  gap: 7px;
+}
+
+.import-grid label > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.file-control,
+.json-control,
+.attestation-control,
+.import-grid .source-note {
+  grid-column: 1 / -1;
+}
+
+.file-control input {
+  padding: 8px 10px;
+}
+
+.attestation-control {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  grid-column: 1 / -1;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.attestation-control input {
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -253,6 +355,75 @@ select {
   display: block;
   margin-top: 8px;
   overflow-wrap: anywhere;
+}
+
+.conclusion-panel {
+  margin-top: 16px;
+  border: 1px solid rgba(91, 140, 255, 0.48);
+  background:
+    linear-gradient(135deg, rgba(91, 140, 255, 0.1), rgba(165, 140, 255, 0.03)),
+    var(--surface);
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.conclusion-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.conclusion-heading h2 {
+  margin: 0;
+}
+
+.conclusion-lede {
+  color: #ced5e2;
+  line-height: 1.65;
+  margin: 14px 0 18px;
+}
+
+.conclusion-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.conclusion-columns article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 9, 11, 0.48);
+  padding: 14px;
+}
+
+.conclusion-columns h3 {
+  margin: 0 0 10px;
+  font-size: 0.86rem;
+}
+
+.conclusion-columns ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.conclusion-next {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 13px 14px;
+  border-left: 3px solid var(--amber);
+  background: rgba(245, 189, 88, 0.06);
+}
+
+.conclusion-next span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .workflow-panel-heading {
@@ -559,7 +730,9 @@ select {
   }
 
   .input-grid,
+  .import-grid,
   .summary-grid,
+  .conclusion-columns,
   .stage-grid {
     grid-template-columns: 1fr;
   }
@@ -611,4 +784,8 @@ select {
 }
 .benchmark-panel .source-note {
   border-left: 3px solid #6d9ed1;
+}
+
+.benchmark-panel .dispute-training-note {
+  border-left-color: var(--amber);
 }
