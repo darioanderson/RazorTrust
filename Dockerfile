@@ -8,6 +8,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
+
+# Alpine 3.24 has not yet published the util-linux fix in its stable index.
+# Pull only the ABI-compatible libuuid patch from edge and pin its fixed version;
+# Debian-based ML builds skip this branch.
+RUN if [ -f /etc/alpine-release ]; then \
+      apk add --no-cache \
+        --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
+        "libuuid=2.42.3-r0"; \
+    fi
+
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY alembic.ini ./
